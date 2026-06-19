@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>War Room — Draft Board Builder</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet"/>
+<style>
+:root{--bg:#0f172a;--surface:#1e293b;--surface2:#334155;--border:#475569;--text:#f1f5f9;--textDim:#94a3b8;--accent:#3b82f6;--accent2:#8b5cf6;--green:#22c55e;--yellow:#eab308;--red:#ef4444;--orange:#f97316}
+.light{--bg:#f8fafc;--surface:#ffffff;--surface2:#f1f5f9;--border:#e2e8f0;--text:#0f172a;--textDim:#64748b;--accent:#2563eb;--accent2:#7c3aed;--green:#16a34a;--yellow:#ca8a04;--red:#dc2626;--orange:#ea580c}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;overflow-x:hidden}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}
+.card-sm{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px}
+.btn{padding:8px 16px;border-radius:8px;border:none;cursor:pointer;font-weight:600;font-size:13px;transition:all .2s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{opacity:.85}
+.btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}.btn-secondary:hover{background:var(--border)}
+.btn-danger{background:var(--red);color:#fff}.btn-danger:hover{opacity:.85}
+.btn-success{background:var(--green);color:#fff}.btn-success:hover{opacity:.85}
+.btn-sm{padding:4px 10px;font-size:12px;border-radius:6px}
+.btn-xs{padding:2px 8px;font-size:11px;border-radius:4px}
+input,select,textarea{background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;width:100%;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:600}
+.badge-green{background:rgba(34,197,94,.15);color:var(--green)}
+.badge-yellow{background:rgba(234,179,8,.15);color:var(--yellow)}
+.badge-red{background:rgba(239,68,68,.15);color:var(--red)}
+.badge-blue{background:rgba(59,130,246,.15);color:var(--accent)}
+.badge-purple{background:rgba(139,92,246,.15);color:var(--accent2)}
+.tab{padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--textDim);transition:all .2s;border:none;background:transparent}
+.tab.active{background:var(--accent);color:#fff}
+.tab:hover:not(.active){background:var(--surface2)}
+.score-bar{height:6px;border-radius:3px;background:var(--surface2);overflow:hidden}
+.score-fill{height:100%;border-radius:3px;transition:width .5s}
+.tier-zone{min-height:60px;border:2px dashed var(--border);border-radius:8px;padding:8px;transition:all .2s}
+.tier-zone.drag-over{border-color:var(--accent);background:rgba(59,130,246,.08)}
+.player-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:8px;font-size:12px;font-weight:500;cursor:grab;transition:all .15s;border:1px solid var(--border);background:var(--surface)}
+.player-chip:hover{border-color:var(--accent);transform:translateY(-1px)}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px)}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:640px;width:90%;max-height:85vh;overflow-y:auto}
+.sidebar{width:280px;min-width:280px;background:var(--surface);border-right:1px solid var(--border);height:100vh;overflow-y:auto;transition:all .3s}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeIn .3s ease}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.grid-auto{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.drafted-overlay{position:relative}.drafted-overlay::after{content:'DRAFTED';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);color:#ef4444;font-size:18px;font-weight:900;border-radius:8px;letter-spacing:2px;pointer-events:none}
+.check-btn{width:22px;height:22px;border-radius:4px;border:2px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.check-btn.checked{background:var(--green);border-color:var(--green);color:#fff}
+.color-dot{width:22px;height:22px;border-radius:6px;cursor:pointer;border:3px solid transparent;flex-shrink:0;transition:all .1s}
+.color-dot.sel{border-color:var(--text)}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useCallback,useMemo,useRef,createContext,useContext}=React;
+
+// ═══════════════════════════════════════════════════
+// DETERMINISTIC HASH (replaces Math.random in scoring)
+// ═══════════════════════════════════════════════════
+function hashStr(s){let h=0;for(let i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0;}return Math.abs(h);}
+
+// ═══════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════
+const POSITIONS=['QB','RB','WR','TE','K','DEF'];
+const NFL_TEAMS=['ARI','ATL','BAL','BUF','CAR','CHI','CIN','CLE','DAL','DEN','DET','GB','HOU','IND','JAX','KC','LAC','LAR','LV','MIA','MIN','NE','NO','NYG','NYJ','PHI','PIT','SEA','SF','TB','TEN','WAS'];
+
+function generatePlayers(){
+const veterans=[
+{name:'Patrick Mahomes',team:'KC',pos:'QB',age:28,exp:8,college:'Texas Tech',ovr:99,injury:0.1,fantPts:24.8,consistency:92,targetShare:0,rzUsage:0,oppShare:0,breakout:15,dynasty:95,speed:82,accel:88,agility:85,strength:72,awareness:99,throwPow:99,throwAcc:98,dev:'Superstar X-Factor',contract:45,leadership:99},
+{name:'Josh Allen',team:'BUF',pos:'QB',age:28,exp:7,college:'Wyoming',ovr:97,injury:0.15,fantPts:23.5,consistency:88,targetShare:0,rzUsage:12,oppShare:0,breakout:10,dynasty:93,speed:87,accel:89,agility:84,strength:85,awareness:96,throwPow:99,throwAcc:91,dev:'Superstar X-Factor',contract:43,leadership:95},
+{name:'Lamar Jackson',team:'BAL',pos:'QB',age:29,exp:7,college:'Louisville',ovr:96,injury:0.2,fantPts:23.1,consistency:85,targetShare:0,rzUsage:15,oppShare:0,breakout:8,dynasty:88,speed:96,accel:95,agility:96,strength:78,awareness:94,throwPow:95,throwAcc:86,dev:'Superstar X-Factor',contract:52,leadership:92},
+{name:'Jalen Hurts',team:'PHI',pos:'QB',age:27,exp:5,college:'Oklahoma',ovr:93,injury:0.2,fantPts:22.0,consistency:84,targetShare:0,rzUsage:14,oppShare:0,breakout:12,dynasty:90,speed:90,accel:91,agility:89,strength:80,awareness:91,throwPow:93,throwAcc:87,dev:'Superstar',contract:51,leadership:90},
+{name:'Joe Burrow',team:'CIN',pos:'QB',age:29,exp:5,college:'LSU',ovr:94,injury:0.35,fantPts:19.8,consistency:87,targetShare:0,rzUsage:5,oppShare:0,breakout:10,dynasty:89,speed:78,accel:82,agility:80,strength:70,awareness:97,throwPow:90,throwAcc:96,dev:'Superstar',contract:55,leadership:94},
+{name:'CJ Stroud',team:'HOU',pos:'QB',age:24,exp:3,college:'Ohio State',ovr:90,injury:0.12,fantPts:18.5,consistency:82,targetShare:0,rzUsage:4,oppShare:0,breakout:40,dynasty:94,speed:80,accel:84,agility:82,strength:72,awareness:90,throwPow:91,throwAcc:93,dev:'Superstar',contract:12,leadership:85},
+{name:'Caleb Williams',team:'CHI',pos:'QB',age:23,exp:2,college:'USC',ovr:85,injury:0.15,fantPts:17.2,consistency:72,targetShare:0,rzUsage:8,oppShare:0,breakout:55,dynasty:92,speed:85,accel:87,agility:88,strength:73,awareness:82,throwPow:93,throwAcc:85,dev:'Superstar',contract:9,leadership:78},
+{name:'Christian McCaffrey',team:'SF',pos:'RB',age:29,exp:8,college:'Stanford',ovr:97,injury:0.4,fantPts:22.5,consistency:94,targetShare:14,rzUsage:22,oppShare:78,breakout:5,dynasty:65,speed:89,accel:93,agility:95,strength:78,awareness:97,throwPow:0,throwAcc:0,dev:'Superstar X-Factor',contract:16,leadership:90},
+{name:'Bijan Robinson',team:'ATL',pos:'RB',age:23,exp:3,college:'Texas',ovr:95,injury:0.1,fantPts:20.8,consistency:90,targetShare:10,rzUsage:20,oppShare:72,breakout:20,dynasty:98,speed:93,accel:95,agility:93,strength:82,awareness:90,throwPow:0,throwAcc:0,dev:'Superstar X-Factor',contract:8,leadership:82},
+{name:'Breece Hall',team:'NYJ',pos:'RB',age:24,exp:4,college:'Iowa State',ovr:91,injury:0.25,fantPts:18.2,consistency:82,targetShare:12,rzUsage:18,oppShare:68,breakout:25,dynasty:92,speed:92,accel:93,agility:90,strength:80,awareness:86,throwPow:0,throwAcc:0,dev:'Superstar',contract:6,leadership:78},
+{name:'Jahmyr Gibbs',team:'DET',pos:'RB',age:23,exp:3,college:'Alabama',ovr:90,injury:0.12,fantPts:17.5,consistency:80,targetShare:11,rzUsage:14,oppShare:55,breakout:30,dynasty:93,speed:95,accel:96,agility:94,strength:72,awareness:85,throwPow:0,throwAcc:0,dev:'Superstar',contract:6,leadership:76},
+{name:'Saquon Barkley',team:'PHI',pos:'RB',age:28,exp:7,college:'Penn State',ovr:93,injury:0.3,fantPts:19.0,consistency:78,targetShare:8,rzUsage:19,oppShare:70,breakout:5,dynasty:70,speed:91,accel:94,agility:92,strength:84,awareness:92,throwPow:0,throwAcc:0,dev:'Superstar',contract:12,leadership:88},
+{name:'Jonathan Taylor',team:'IND',pos:'RB',age:26,exp:5,college:'Wisconsin',ovr:90,injury:0.3,fantPts:16.8,consistency:76,targetShare:7,rzUsage:17,oppShare:65,breakout:10,dynasty:80,speed:93,accel:94,agility:88,strength:83,awareness:88,throwPow:0,throwAcc:0,dev:'Star',contract:14,leadership:82},
+{name:'Kyren Williams',team:'LAR',pos:'RB',age:25,exp:3,college:'Notre Dame',ovr:86,injury:0.2,fantPts:16.2,consistency:78,targetShare:9,rzUsage:16,oppShare:66,breakout:18,dynasty:82,speed:87,accel:90,agility:88,strength:78,awareness:84,throwPow:0,throwAcc:0,dev:'Star',contract:4,leadership:75},
+{name:"Ja'Marr Chase",team:'CIN',pos:'WR',age:25,exp:4,college:'LSU',ovr:98,injury:0.1,fantPts:21.2,consistency:92,targetShare:28,rzUsage:15,oppShare:0,breakout:5,dynasty:97,speed:95,accel:96,agility:94,strength:78,awareness:96,throwPow:0,throwAcc:0,dev:'Superstar X-Factor',contract:35,leadership:88},
+{name:'Tyreek Hill',team:'MIA',pos:'WR',age:32,exp:9,college:'West Alabama',ovr:96,injury:0.15,fantPts:20.5,consistency:88,targetShare:30,rzUsage:12,oppShare:0,breakout:3,dynasty:60,speed:99,accel:98,agility:96,strength:68,awareness:95,throwPow:0,throwAcc:0,dev:'Superstar X-Factor',contract:30,leadership:85},
+{name:'CeeDee Lamb',team:'DAL',pos:'WR',age:26,exp:5,college:'Oklahoma',ovr:96,injury:0.1,fantPts:20.8,consistency:90,targetShare:29,rzUsage:14,oppShare:0,breakout:5,dynasty:95,speed:93,accel:95,agility:96,strength:74,awareness:94,throwPow:0,throwAcc:0,dev:'Superstar X-Factor',contract:34,leadership:86},
+{name:'Amon-Ra St. Brown',team:'DET',pos:'WR',age:25,exp:4,college:'USC',ovr:93,injury:0.08,fantPts:19.5,consistency:93,targetShare:27,rzUsage:13,oppShare:0,breakout:8,dynasty:94,speed:90,accel:92,agility:93,strength:76,awareness:93,throwPow:0,throwAcc:0,dev:'Superstar',contract:28,leadership:88},
+{name:'Garrett Wilson',team:'NYJ',pos:'WR',age:24,exp:4,college:'Ohio State',ovr:90,injury:0.1,fantPts:16.8,consistency:78,targetShare:25,rzUsage:10,oppShare:0,breakout:30,dynasty:93,speed:92,accel:94,agility:95,strength:72,awareness:88,throwPow:0,throwAcc:0,dev:'Superstar',contract:6,leadership:80},
+{name:'Marvin Harrison Jr',team:'ARI',pos:'WR',age:23,exp:2,college:'Ohio State',ovr:88,injury:0.1,fantPts:16.0,consistency:76,targetShare:26,rzUsage:12,oppShare:0,breakout:50,dynasty:96,speed:91,accel:93,agility:91,strength:78,awareness:86,throwPow:0,throwAcc:0,dev:'Superstar',contract:8,leadership:82},
+{name:'Malik Nabers',team:'NYG',pos:'WR',age:22,exp:2,college:'LSU',ovr:86,injury:0.12,fantPts:15.5,consistency:74,targetShare:27,rzUsage:11,oppShare:0,breakout:55,dynasty:95,speed:93,accel:95,agility:94,strength:74,awareness:82,throwPow:0,throwAcc:0,dev:'Superstar',contract:7,leadership:76},
+{name:'Chris Olave',team:'NO',pos:'WR',age:25,exp:4,college:'Ohio State',ovr:89,injury:0.15,fantPts:15.2,consistency:80,targetShare:24,rzUsage:9,oppShare:0,breakout:22,dynasty:90,speed:93,accel:94,agility:91,strength:72,awareness:88,throwPow:0,throwAcc:0,dev:'Star',contract:5,leadership:78},
+{name:'Drake London',team:'ATL',pos:'WR',age:24,exp:4,college:'USC',ovr:88,injury:0.15,fantPts:15.0,consistency:78,targetShare:23,rzUsage:13,oppShare:0,breakout:28,dynasty:91,speed:88,accel:90,agility:86,strength:82,awareness:87,throwPow:0,throwAcc:0,dev:'Star',contract:6,leadership:80},
+{name:'Davante Adams',team:'NYJ',pos:'WR',age:32,exp:11,college:'Fresno State',ovr:93,injury:0.2,fantPts:17.5,consistency:90,targetShare:28,rzUsage:14,oppShare:0,breakout:2,dynasty:55,speed:88,accel:90,agility:94,strength:76,awareness:98,throwPow:0,throwAcc:0,dev:'Superstar',contract:25,leadership:94},
+{name:'Travis Kelce',team:'KC',pos:'TE',age:35,exp:12,college:'Cincinnati',ovr:95,injury:0.18,fantPts:16.5,consistency:92,targetShare:24,rzUsage:12,oppShare:0,breakout:1,dynasty:30,speed:82,accel:84,agility:86,strength:82,awareness:99,throwPow:0,throwAcc:0,dev:'Superstar X-Factor',contract:14,leadership:99},
+{name:'Sam LaPorta',team:'DET',pos:'TE',age:24,exp:3,college:'Iowa',ovr:88,injury:0.08,fantPts:14.2,consistency:80,targetShare:18,rzUsage:10,oppShare:0,breakout:25,dynasty:94,speed:87,accel:89,agility:87,strength:78,awareness:85,throwPow:0,throwAcc:0,dev:'Superstar',contract:4,leadership:78},
+{name:'Trey McBride',team:'ARI',pos:'TE',age:25,exp:4,college:'Colorado State',ovr:89,injury:0.1,fantPts:14.8,consistency:82,targetShare:22,rzUsage:9,oppShare:0,breakout:20,dynasty:92,speed:85,accel:88,agility:85,strength:80,awareness:87,throwPow:0,throwAcc:0,dev:'Star',contract:5,leadership:82},
+{name:'George Kittle',team:'SF',pos:'TE',age:31,exp:8,college:'Iowa',ovr:92,injury:0.3,fantPts:13.5,consistency:75,targetShare:16,rzUsage:8,oppShare:0,breakout:2,dynasty:55,speed:88,accel:90,agility:86,strength:86,awareness:94,throwPow:0,throwAcc:0,dev:'Superstar',contract:15,leadership:92},
+{name:'Mark Andrews',team:'BAL',pos:'TE',age:29,exp:7,college:'Oklahoma',ovr:90,injury:0.35,fantPts:13.0,consistency:72,targetShare:20,rzUsage:11,oppShare:0,breakout:5,dynasty:65,speed:84,accel:87,agility:84,strength:80,awareness:92,throwPow:0,throwAcc:0,dev:'Star',contract:14,leadership:86},
+{name:'Brock Bowers',team:'LV',pos:'TE',age:23,exp:2,college:'Georgia',ovr:87,injury:0.08,fantPts:14.5,consistency:82,targetShare:22,rzUsage:10,oppShare:0,breakout:40,dynasty:97,speed:89,accel:91,agility:90,strength:78,awareness:84,throwPow:0,throwAcc:0,dev:'Superstar',contract:6,leadership:76},
+{name:'Derrick Henry',team:'BAL',pos:'RB',age:31,exp:9,college:'Alabama',ovr:91,injury:0.25,fantPts:17.5,consistency:80,targetShare:4,rzUsage:22,oppShare:72,breakout:2,dynasty:45,speed:90,accel:89,agility:80,strength:95,awareness:92,throwPow:0,throwAcc:0,dev:'Superstar',contract:10,leadership:92},
+{name:"De'Von Achane",team:'MIA',pos:'RB',age:23,exp:3,college:'Texas A&M',ovr:87,injury:0.25,fantPts:17.8,consistency:70,targetShare:10,rzUsage:12,oppShare:58,breakout:35,dynasty:90,speed:97,accel:97,agility:95,strength:65,awareness:82,throwPow:0,throwAcc:0,dev:'Superstar',contract:4,leadership:72},
+{name:'Puka Nacua',team:'LAR',pos:'WR',age:24,exp:3,college:'BYU',ovr:89,injury:0.15,fantPts:17.0,consistency:82,targetShare:28,rzUsage:10,oppShare:0,breakout:30,dynasty:94,speed:90,accel:92,agility:90,strength:78,awareness:88,throwPow:0,throwAcc:0,dev:'Superstar',contract:4,leadership:80},
+{name:'Justin Jefferson',team:'MIN',pos:'WR',age:26,exp:5,college:'LSU',ovr:98,injury:0.12,fantPts:20.0,consistency:91,targetShare:29,rzUsage:12,oppShare:0,breakout:5,dynasty:97,speed:94,accel:95,agility:96,strength:74,awareness:97,throwPow:0,throwAcc:0,dev:'Superstar X-Factor',contract:35,leadership:90},
+{name:'AJ Brown',team:'PHI',pos:'WR',age:27,exp:5,college:'Ole Miss',ovr:94,injury:0.18,fantPts:18.5,consistency:85,targetShare:26,rzUsage:13,oppShare:0,breakout:5,dynasty:88,speed:93,accel:94,agility:90,strength:84,awareness:93,throwPow:0,throwAcc:0,dev:'Superstar',contract:32,leadership:88},
+{name:'Nico Collins',team:'HOU',pos:'WR',age:26,exp:4,college:'Michigan',ovr:91,injury:0.2,fantPts:18.0,consistency:80,targetShare:25,rzUsage:12,oppShare:0,breakout:15,dynasty:90,speed:92,accel:93,agility:88,strength:82,awareness:89,throwPow:0,throwAcc:0,dev:'Star',contract:20,leadership:82},
+{name:'Tank Dell',team:'HOU',pos:'WR',age:25,exp:3,college:'Houston',ovr:85,injury:0.3,fantPts:14.5,consistency:72,targetShare:20,rzUsage:10,oppShare:0,breakout:35,dynasty:88,speed:94,accel:95,agility:93,strength:68,awareness:82,throwPow:0,throwAcc:0,dev:'Star',contract:3,leadership:74},
+{name:'Dak Prescott',team:'DAL',pos:'QB',age:31,exp:9,college:'Mississippi State',ovr:88,injury:0.3,fantPts:18.5,consistency:82,targetShare:0,rzUsage:6,oppShare:0,breakout:5,dynasty:65,speed:78,accel:82,agility:78,strength:78,awareness:92,throwPow:92,throwAcc:90,dev:'Star',contract:60,leadership:90},
+{name:'Tua Tagovailoa',team:'MIA',pos:'QB',age:28,exp:5,college:'Alabama',ovr:87,injury:0.4,fantPts:17.8,consistency:78,targetShare:0,rzUsage:3,oppShare:0,breakout:8,dynasty:72,speed:78,accel:82,agility:80,strength:68,awareness:90,throwPow:85,throwAcc:94,dev:'Star',contract:53,leadership:82},
+{name:'Anthony Richardson',team:'IND',pos:'QB',age:23,exp:3,college:'Florida',ovr:80,injury:0.4,fantPts:16.5,consistency:58,targetShare:0,rzUsage:12,oppShare:0,breakout:55,dynasty:88,speed:94,accel:95,agility:90,strength:85,awareness:72,throwPow:98,throwAcc:72,dev:'Superstar',contract:8,leadership:72},
+{name:'Drake Maye',team:'NE',pos:'QB',age:23,exp:2,college:'North Carolina',ovr:78,injury:0.15,fantPts:15.0,consistency:65,targetShare:0,rzUsage:7,oppShare:0,breakout:50,dynasty:88,speed:83,accel:86,agility:84,strength:78,awareness:75,throwPow:92,throwAcc:82,dev:'Superstar',contract:7,leadership:75},
+{name:'Jayden Daniels',team:'WAS',pos:'QB',age:24,exp:2,college:'LSU',ovr:86,injury:0.15,fantPts:20.5,consistency:78,targetShare:0,rzUsage:10,oppShare:0,breakout:45,dynasty:93,speed:91,accel:93,agility:92,strength:72,awareness:84,throwPow:90,throwAcc:88,dev:'Superstar',contract:8,leadership:80},
+{name:'Isiah Pacheco',team:'KC',pos:'RB',age:25,exp:4,college:'Rutgers',ovr:85,injury:0.25,fantPts:14.5,consistency:76,targetShare:5,rzUsage:15,oppShare:60,breakout:18,dynasty:78,speed:91,accel:92,agility:85,strength:82,awareness:82,throwPow:0,throwAcc:0,dev:'Star',contract:5,leadership:80},
+{name:'Josh Jacobs',team:'GB',pos:'RB',age:27,exp:6,college:'Alabama',ovr:88,injury:0.2,fantPts:16.0,consistency:80,targetShare:8,rzUsage:16,oppShare:65,breakout:5,dynasty:72,speed:88,accel:90,agility:87,strength:84,awareness:88,throwPow:0,throwAcc:0,dev:'Star',contract:12,leadership:85},
+{name:'Kenneth Walker III',team:'SEA',pos:'RB',age:24,exp:4,college:'Michigan State',ovr:87,injury:0.2,fantPts:15.5,consistency:76,targetShare:6,rzUsage:15,oppShare:62,breakout:18,dynasty:84,speed:92,accel:93,agility:90,strength:80,awareness:84,throwPow:0,throwAcc:0,dev:'Star',contract:5,leadership:76},
+{name:'Deebo Samuel',team:'SF',pos:'WR',age:28,exp:6,college:'South Carolina',ovr:91,injury:0.25,fantPts:16.5,consistency:76,targetShare:20,rzUsage:12,oppShare:8,breakout:5,dynasty:75,speed:93,accel:94,agility:92,strength:82,awareness:90,throwPow:0,throwAcc:0,dev:'Superstar',contract:24,leadership:88},
+{name:'Jaylen Waddle',team:'MIA',pos:'WR',age:26,exp:4,college:'Alabama',ovr:89,injury:0.15,fantPts:15.5,consistency:78,targetShare:22,rzUsage:9,oppShare:0,breakout:12,dynasty:88,speed:96,accel:97,agility:95,strength:70,awareness:87,throwPow:0,throwAcc:0,dev:'Star',contract:22,leadership:78},
+{name:'DK Metcalf',team:'SEA',pos:'WR',age:27,exp:6,college:'Ole Miss',ovr:90,injury:0.15,fantPts:15.8,consistency:78,targetShare:24,rzUsage:12,oppShare:0,breakout:5,dynasty:82,speed:96,accel:94,agility:86,strength:90,awareness:88,throwPow:0,throwAcc:0,dev:'Star',contract:24,leadership:84},
+{name:'Kyle Pitts',team:'ATL',pos:'TE',age:25,exp:4,college:'Florida',ovr:85,injury:0.18,fantPts:11.5,consistency:68,targetShare:16,rzUsage:7,oppShare:0,breakout:30,dynasty:85,speed:89,accel:90,agility:88,strength:78,awareness:80,throwPow:0,throwAcc:0,dev:'Superstar',contract:10,leadership:72},
+{name:'Dallas Goedert',team:'PHI',pos:'TE',age:29,exp:7,college:'South Dakota State',ovr:87,injury:0.25,fantPts:12.0,consistency:76,targetShare:15,rzUsage:8,oppShare:0,breakout:5,dynasty:60,speed:84,accel:86,agility:84,strength:82,awareness:88,throwPow:0,throwAcc:0,dev:'Star',contract:12,leadership:84},
+{name:'Jaxon Smith-Njigba',team:'SEA',pos:'WR',age:23,exp:3,college:'Ohio State',ovr:85,injury:0.1,fantPts:14.0,consistency:76,targetShare:22,rzUsage:8,oppShare:0,breakout:40,dynasty:92,speed:90,accel:92,agility:94,strength:70,awareness:84,throwPow:0,throwAcc:0,dev:'Star',contract:5,leadership:76},
+{name:'Rashee Rice',team:'KC',pos:'WR',age:25,exp:3,college:'SMU',ovr:86,injury:0.15,fantPts:15.5,consistency:78,targetShare:24,rzUsage:10,oppShare:0,breakout:25,dynasty:88,speed:90,accel:92,agility:90,strength:78,awareness:84,throwPow:0,throwAcc:0,dev:'Star',contract:4,leadership:76},
+{name:'Zay Flowers',team:'BAL',pos:'WR',age:24,exp:3,college:'Boston College',ovr:85,injury:0.1,fantPts:14.2,consistency:76,targetShare:22,rzUsage:8,oppShare:0,breakout:32,dynasty:90,speed:92,accel:94,agility:93,strength:68,awareness:83,throwPow:0,throwAcc:0,dev:'Star',contract:4,leadership:75},
+{name:'Jordan Love',team:'GB',pos:'QB',age:26,exp:5,college:'Utah State',ovr:86,injury:0.2,fantPts:18.0,consistency:74,targetShare:0,rzUsage:5,oppShare:0,breakout:25,dynasty:85,speed:82,accel:85,agility:83,strength:76,awareness:84,throwPow:94,throwAcc:86,dev:'Star',contract:55,leadership:82}
+];
+
+const rookies=[
+{name:'Shedeur Sanders',team:'CLE',pos:'QB',age:22,exp:0,college:'Colorado',ovr:76,injury:0.1,fantPts:0,consistency:0,targetShare:0,rzUsage:0,oppShare:0,breakout:60,dynasty:90,speed:78,accel:82,agility:80,strength:70,awareness:78,throwPow:88,throwAcc:90,dev:'Superstar',contract:6,leadership:80,rookie:true,draftPos:'1.01',athleticScore:75,expectedOpp:'Day 1 Starter'},
+{name:'Cam Ward',team:'NYG',pos:'QB',age:23,exp:0,college:'Miami',ovr:75,injury:0.12,fantPts:0,consistency:0,targetShare:0,rzUsage:0,oppShare:0,breakout:58,dynasty:88,speed:82,accel:85,agility:84,strength:74,awareness:76,throwPow:92,throwAcc:84,dev:'Superstar',contract:5,leadership:78,rookie:true,draftPos:'1.02',athleticScore:82,expectedOpp:'Day 1 Starter'},
+{name:'Travis Hunter',team:'JAX',pos:'WR',age:22,exp:0,college:'Colorado',ovr:82,injury:0.1,fantPts:0,consistency:0,targetShare:0,rzUsage:0,oppShare:0,breakout:65,dynasty:96,speed:93,accel:94,agility:93,strength:78,awareness:82,throwPow:0,throwAcc:0,dev:'Superstar X-Factor',contract:7,leadership:82,rookie:true,draftPos:'1.03',athleticScore:95,expectedOpp:'Day 1 WR1'},
+{name:'Ashton Jeanty',team:'TEN',pos:'RB',age:21,exp:0,college:'Boise State',ovr:80,injury:0.08,fantPts:0,consistency:0,targetShare:0,rzUsage:0,oppShare:0,breakout:62,dynasty:92,speed:92,accel:94,agility:92,strength:82,awareness:78,throwPow:0,throwAcc:0,dev:'Superstar',contract:5,leadership:76,rookie:true,draftPos:'1.05',athleticScore:92,expectedOpp:'Lead Back'},
+{name:'Tetairoa McMillan',team:'DAL',pos:'WR',age:21,exp:0,college:'Arizona',ovr:78,injury:0.08,fantPts:0,consistency:0,targetShare:0,rzUsage:0,oppShare:0,breakout:58,dynasty:91,speed:90,accel:92,agility:88,strength:80,awareness:78,throwPow:0,throwAcc:0,dev:'Superstar',contract:5,leadership:74,rookie:true,draftPos:'1.08',athleticScore:88,expectedOpp:'WR2 with upside'},
+{name:'Luther Burden III',team:'DEN',pos:'WR',age:21,exp:0,college:'Missouri',ovr:77,injury:0.1,fantPts:0,consistency:0,targetShare:0,rzUsage:0,oppShare:0,breakout:52,dynasty:88,speed:91,accel:93,agility:92,strength:76,awareness:76,throwPow:0,throwAcc:0,dev:'Star',contract:4,leadership:72,rookie:true,draftPos:'1.12',athleticScore:90,expectedOpp:'WR2'},
+{name:'Tyler Warren',team:'MIN',pos:'TE',age:23,exp:0,college:'Penn State',ovr:76,injury:0.08,fantPts:0,consistency:0,targetShare:0,rzUsage:0,oppShare:0,breakout:50,dynasty:90,speed:84,accel:87,agility:85,strength:82,awareness:78,throwPow:0,throwAcc:0,dev:'Star',contract:3,leadership:78,rookie:true,draftPos:'1.15',athleticScore:82,expectedOpp:'Starting TE'},
+{name:'Mason Graham',team:'NE',pos:'DEF',age:22,exp:0,college:'Michigan',ovr:79,injury:0.08,fantPts:0,consistency:0,targetShare:0,rzUsage:0,oppShare:0,breakout:45,dynasty:85,speed:78,accel:82,agility:76,strength:92,awareness:80,throwPow:0,throwAcc:0,dev:'Superstar',contract:5,leadership:80,rookie:true,draftPos:'1.04',athleticScore:85,expectedOpp:'Day 1 Starter'},
+{name:'Abdul Carter',team:'LV',pos:'DEF',age:21,exp:0,college:'Penn State',ovr:78,injury:0.1,fantPts:0,consistency:0,targetShare:0,rzUsage:0,oppShare:0,breakout:55,dynasty:88,speed:88,accel:90,agility:88,strength:86,awareness:76,throwPow:0,throwAcc:0,dev:'Superstar',contract:5,leadership:76,rookie:true,draftPos:'1.06',athleticScore:92,expectedOpp:'Day 1 Edge'},
+{name:'Will Campbell',team:'CAR',pos:'DEF',age:21,exp:0,college:'LSU',ovr:77,injury:0.06,fantPts:0,consistency:0,targetShare:0,rzUsage:0,oppShare:0,breakout:40,dynasty:82,speed:72,accel:78,agility:74,strength:90,awareness:78,throwPow:0,throwAcc:0,dev:'Star',contract:4,leadership:78,rookie:true,draftPos:'1.07',athleticScore:78,expectedOpp:'Starting OL'},
+{name:'Omarion Hampton',team:'PIT',pos:'RB',age:22,exp:0,college:'North Carolina',ovr:76,injury:0.1,fantPts:0,consistency:0,targetShare:0,rzUsage:0,oppShare:0,breakout:48,dynasty:86,speed:90,accel:92,agility:88,strength:84,awareness:74,throwPow:0,throwAcc:0,dev:'Star',contract:3,leadership:72,rookie:true,draftPos:'2.01',athleticScore:88,expectedOpp:'RB2 with upside'},
+{name:'Emeka Egbuka',team:'CHI',pos:'WR',age:23,exp:0,college:'Ohio State',ovr:76,injury:0.08,fantPts:0,consistency:0,targetShare:0,rzUsage:0,oppShare:0,breakout:45,dynasty:85,speed:89,accel:91,agility:90,strength:76,awareness:78,throwPow:0,throwAcc:0,dev:'Star',contract:3,leadership:78,rookie:true,draftPos:'1.18',athleticScore:86,expectedOpp:'WR2/3'}
+];
+
+const collegePlayers=[
+{name:'Quinn Ewers',pos:'QB',age:22,college:'Texas',ovr:0,injury:0.12,fantPts:0,consistency:0,targetShare:0,rzUsage:0,oppShare:0,breakout:50,dynasty:82,speed:78,accel:82,agility:80,strength:74,awareness:80,throwPow:90,throwAcc:88,dev:'Star',contract:0,leadership:78,prospect:true,projDraftPos:'Round 1',nflProjection:82,athleticScore:78,prodScore:82},
+{name:'Jeremiah Smith',pos:'WR',age:20,college:'Ohio State',ovr:0,injury:0.06,fantPts:0,consistency:0,targetShare:0,rzUsage:0,oppShare:0,breakout:70,dynasty:96,speed:95,accel:96,agility:94,strength:80,awareness:78,throwPow:0,throwAcc:0,dev:'Superstar X-Factor',contract:0,leadership:76,prospect:true,projDraftPos:'Top 5',nflProjection:92,athleticScore:96,prodScore:90},
+{name:'Tre Harris',pos:'WR',age:23,college:'Ole Miss',ovr:0,injury:0.15,fantPts:0,consistency:0,targetShare:0,rzUsage:0,oppShare:0,breakout:42,dynasty:80,speed:89,accel:91,agility:88,strength:78,awareness:76,throwPow:0,throwAcc:0,dev:'Star',contract:0,leadership:74,prospect:true,projDraftPos:'Round 1',nflProjection:80,athleticScore:85,prodScore:84},
+{name:'Mykel Williams',pos:'DEF',age:21,college:'Georgia',ovr:0,injury:0.08,fantPts:0,consistency:0,targetShare:0,rzUsage:0,oppShare:0,breakout:52,dynasty:86,speed:84,accel:88,agility:82,strength:92,awareness:78,throwPow:0,throwAcc:0,dev:'Superstar',contract:0,leadership:78,prospect:true,projDraftPos:'Top 10',nflProjection:86,athleticScore:90,prodScore:82},
+{name:'Kelvin Banks Jr',pos:'DEF',age:22,college:'Texas',ovr:0,injury:0.08,fantPts:0,consistency:0,targetShare:0,rzUsage:0,oppShare:0,breakout:38,dynasty:80,speed:72,accel:78,agility:74,strength:90,awareness:80,throwPow:0,throwAcc:0,dev:'Star',contract:0,leadership:80,prospect:true,projDraftPos:'Round 1',nflProjection:82,athleticScore:78,prodScore:80},
+{name:'Dylan Raiola',pos:'QB',age:20,college:'Nebraska',ovr:0,injury:0.1,fantPts:0,consistency:0,targetShare:0,rzUsage:0,oppShare:0,breakout:55,dynasty:85,speed:80,accel:84,agility:82,strength:76,awareness:74,throwPow:92,throwAcc:82,dev:'Superstar',contract:0,leadership:76,prospect:true,projDraftPos:'Round 1',nflProjection:80,athleticScore:82,prodScore:72},
+{name:'TreVeyon Henderson',pos:'RB',age:22,college:'Ohio State',ovr:0,injury:0.2,fantPts:0,consistency:0,targetShare:0,rzUsage:0,oppShare:0,breakout:40,dynasty:78,speed:94,accel:95,agility:90,strength:78,awareness:76,throwPow:0,throwAcc:0,dev:'Star',contract:0,leadership:72,prospect:true,projDraftPos:'Round 2',nflProjection:78,athleticScore:92,prodScore:76}
+];
+
+return [...veterans.map((p,i)=>({...p,id:'v'+i,type:'veteran'})),...rookies.map((p,i)=>({...p,id:'r'+i,type:'rookie'})),...collegePlayers.map((p,i)=>({...p,id:'c'+i,type:'prospect',team:''}))];
+}
+
+const ALL_PLAYERS=generatePlayers();
+const NFL_PLAYERS=ALL_PLAYERS.filter(p=>p.type!=='prospect'); // Veterans + Rookies only
+
+// ═══════════════════════════════════════════════════
+// SCORING ENGINES (NO Math.random — fully deterministic)
+// ═══════════════════════════════════════════════════
+const SCORING_FORMATS={standard:{label:'Standard',ppr:0},halfPpr:{label:'Half PPR',ppr:0.5},fullPpr:{label:'Full PPR',ppr:1},superflex:{label:'Superflex',ppr:1,sflex:true},dynasty:{label:'Dynasty',ppr:1,dynasty:true},keeper:{label:'Keeper',ppr:0.5,keeper:true},bestBall:{label:'Best Ball',ppr:1,bestBall:true},custom:{label:'Custom',ppr:0.5}};
+const OFF_SCHEMES=['West Coast','Spread','Air Raid','Vertical','Run Heavy','Power Run','Zone Run','Balanced'];
+const DEF_SCHEMES=['4-3 Base','3-4 Base','Nickel Heavy','Dime Heavy','Cover 2','Cover 3','Cover 4','Man Coverage','Zone Coverage','Hybrid'];
+
+function calcFantasyScore(p,format='halfPpr'){
+const f=SCORING_FORMATS[format]||SCORING_FORMATS.halfPpr;
+const isDynasty=f.dynasty||false;const isSflex=f.sflex||false;
+let score=0;
+const ageFactor=p.pos==='QB'?Math.max(0,(38-p.age)/18):p.pos==='RB'?Math.max(0,(32-p.age)/14):p.pos==='WR'?Math.max(0,(35-p.age)/17):Math.max(0,(36-p.age)/18);
+score+=p.fantPts*2.2;score+=p.consistency*0.15;score+=(1-p.injury)*8;
+const posScarcity=p.pos==='TE'?8:p.pos==='QB'?(isSflex?12:4):p.pos==='RB'?6:5;
+score+=posScarcity;score+=p.targetShare*0.15;score+=p.rzUsage*0.2;score+=p.oppShare*0.08;score+=p.breakout*0.12;
+if(isDynasty)score+=ageFactor*12+p.dynasty*0.08;
+if(p.rookie)score+=p.breakout*0.15;
+return Math.round(Math.min(99,Math.max(1,score)));
+}
+
+function calcSchemeFit(p,offScheme,defScheme){
+// DETERMINISTIC — uses player name hash instead of Math.random
+if(p.pos==='DEF'){const h=hashStr(p.name+offScheme+defScheme);return 75+(h%21);}
+let fit=70;
+if(p.pos==='QB'){
+if(offScheme==='Air Raid'||offScheme==='Spread')fit+=p.throwAcc>88?15:5;
+if(offScheme==='Run Heavy'||offScheme==='Zone Run')fit+=p.speed>85?12:0;
+if(offScheme==='West Coast')fit+=p.throwAcc>90?15:5;
+if(offScheme==='Vertical')fit+=p.throwPow>92?15:5;
+}else if(p.pos==='RB'){
+if(offScheme==='Run Heavy'||offScheme==='Power Run')fit+=p.strength>82?15:5;
+if(offScheme==='Zone Run')fit+=p.agility>90?15:5;
+if(offScheme==='Spread'||offScheme==='West Coast')fit+=p.agility>88?10:0;
+}else if(p.pos==='WR'){
+if(offScheme==='Air Raid'||offScheme==='Vertical')fit+=p.speed>92?15:5;
+if(offScheme==='West Coast'||offScheme==='Spread')fit+=p.agility>90?12:5;
+}else if(p.pos==='TE'){
+if(offScheme==='West Coast')fit+=12;
+if(offScheme==='Run Heavy'||offScheme==='Power Run')fit+=p.strength>80?10:3;
+}
+return Math.min(99,Math.max(40,fit));
+}
+
+function calcFranchiseScore(p,offScheme='Balanced',defScheme='4-3 Base'){
+let score=0;score+=p.ovr*0.35;
+const ageFactor=Math.max(0,(34-p.age)/16);score+=ageFactor*15;
+const devScore=p.dev==='Superstar X-Factor'?15:p.dev==='Superstar'?12:p.dev==='Star'?8:4;
+score+=devScore;
+const athScore=(p.speed+p.accel+p.agility+p.strength)/4;score+=athScore*0.12;
+score+=(1-p.injury)*6;score+=(100-p.contract)*0.06;score+=p.leadership*0.06;
+score+=calcSchemeFit(p,offScheme,defScheme)*0.08;
+return Math.round(Math.min(99,Math.max(1,score)));
+}
+
+function getSleeperRating(p){return Math.min(99,Math.max(1,Math.round(p.breakout*0.6+(100-calcFantasyScore(p))*0.2+(p.rookie?15:0)+(p.prospect?20:0))));}
+function getBustRisk(p){return Math.min(99,Math.max(1,Math.round(p.injury*60+(100-p.consistency)*0.3+(p.age>30?15:0)+(p.rookie?10:0))));}
+function getBreakoutScore(p){return Math.min(99,Math.max(1,Math.round(p.breakout*0.7+(p.age<25?15:0)+(p.rookie?10:0)+(p.prospect?15:0))));}
+
+function scoreColor(v){return v>=75?'var(--green)':v>=50?'var(--yellow)':'var(--red)';}
+function scoreBadge(v){return v>=75?'badge-green':v>=50?'badge-yellow':'badge-red';}
+
+const TIER_COLORS=['#22c55e','#3b82f6','#eab308','#f97316','#ef4444','#8b5cf6','#ec4899','#06b6d4','#64748b','#f43f5e'];
+
+// ═══════════════════════════════════════════════════
+// CONTEXT
+// ═══════════════════════════════════════════════════
+const AppCtx=createContext();
+
+// ═══════════════════════════════════════════════════
+// COMPONENTS
+// ═══════════════════════════════════════════════════
+function ScoreBar({value,max=100,color}){
+return <div className="score-bar"><div className="score-fill" style={{width:`${(value/max)*100}%`,background:color||scoreColor(value)}}/></div>;
+}
+
+function Modal({open,onClose,title,children,wide}){
+if(!open)return null;
+return <div className="modal-overlay" onClick={onClose}><div className="modal fade-in" onClick={e=>e.stopPropagation()} style={wide?{maxWidth:800}:{}}>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+<h3 style={{fontSize:18,fontWeight:700}}>{title}</h3>
+<button className="btn btn-secondary btn-sm" onClick={onClose}>✕</button>
+</div>{children}</div></div>;
+}
+
+// ── Player Card with Draft Checkbox ──
+function PlayerCard({player,mode,format,offScheme,defScheme,gms,onVote,drafted,onToggleDraft}){
+const fs=calcFantasyScore(player,format);
+const fr=calcFranchiseScore(player,offScheme,defScheme);
+const sf=calcSchemeFit(player,offScheme,defScheme);
+const sleeper=getSleeperRating(player);
+const bust=getBustRisk(player);
+const bk=getBreakoutScore(player);
+const score=mode==='fantasy'?fs:fr;
+const [expanded,setExpanded]=useState(false);
+const [noteOpen,setNoteOpen]=useState(false);
+const gm1Votes=(gms[0]?.votes||{})[player.id]||0;
+const gm2Votes=(gms[1]?.votes||{})[player.id]||0;
+
+return <div className={`card-sm fade-in ${drafted?'drafted-overlay':''}`} style={{cursor:'grab',position:'relative'}}
+draggable onDragStart={e=>{e.dataTransfer.setData('text/plain',player.id);e.dataTransfer.effectAllowed='move';}}>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
+<div style={{display:'flex',gap:8,alignItems:'flex-start',flex:1,minWidth:0}}>
+{/* Draft Checkbox */}
+<button className={`check-btn ${drafted?'checked':''}`} onClick={e=>{e.stopPropagation();onToggleDraft(player.id);}} title={drafted?'Undraft':'Mark as drafted'}>
+{drafted&&<span style={{fontSize:12}}>✓</span>}
+</button>
+<div style={{flex:1,minWidth:0}}>
+<div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+<span style={{fontWeight:700,fontSize:14}}>{player.name}</span>
+<span className="badge badge-blue">{player.pos}</span>
+{player.team&&<span style={{fontSize:12,color:'var(--textDim)'}}>{player.team}</span>}
+{player.rookie&&<span className="badge badge-purple">ROOKIE</span>}
+{player.prospect&&<span className="badge" style={{background:'rgba(249,115,22,.15)',color:'var(--orange)'}}>PROSPECT</span>}
+</div>
+<div style={{fontSize:12,color:'var(--textDim)',marginTop:4}}>
+{player.college}{player.age?' · Age '+player.age:''}{player.exp?' · '+player.exp+'yr':''}
+</div>
+</div>
+</div>
+<div style={{textAlign:'center',minWidth:48}}>
+<div style={{fontSize:24,fontWeight:800,color:scoreColor(score)}}>{score}</div>
+<div style={{fontSize:10,color:'var(--textDim)',textTransform:'uppercase'}}>{mode==='fantasy'?'FScore':'FrScore'}</div>
+</div>
+</div>
+
+<div style={{display:'flex',gap:6,marginTop:8,flexWrap:'wrap'}}>
+{mode==='fantasy'?<>
+<span className={'badge '+scoreBadge(sleeper)}>Sleeper {sleeper}</span>
+<span className={'badge '+scoreBadge(100-bust)}>Bust {bust}</span>
+<span className={'badge '+scoreBadge(bk)}>Breakout {bk}</span>
+{player.fantPts>0&&<span className="badge badge-blue">{player.fantPts} FPPG</span>}
+</>:<>
+<span className={'badge '+scoreBadge(sf)}>Fit {sf}</span>
+<span className="badge badge-blue">OVR {player.ovr||'—'}</span>
+<span className={'badge '+scoreBadge(player.dynasty||50)}>Dev {player.dev||'—'}</span>
+</>}
+</div>
+
+<div style={{display:'flex',gap:8,marginTop:8,alignItems:'center',flexWrap:'wrap'}}>
+{gms.map((gm,gi)=>gm.name?<div key={gi} style={{display:'flex',alignItems:'center',gap:4}}>
+<button className="btn-xs btn" style={{background:gm.color,color:'#fff',opacity:.9}} onClick={e=>{e.stopPropagation();onVote(gi,player.id,1);}}>+</button>
+<span style={{fontSize:12,fontWeight:600,color:gm.color}}>{gi===0?gm1Votes:gm2Votes}</span>
+<button className="btn-xs btn" style={{background:'var(--surface2)',color:'var(--text)'}} onClick={e=>{e.stopPropagation();onVote(gi,player.id,-1);}}>−</button>
+<span style={{fontSize:10,color:'var(--textDim)'}}>{gm.name}</span>
+</div>:null)}
+<div style={{marginLeft:'auto',display:'flex',gap:4}}>
+<button className="btn btn-secondary btn-xs" onClick={e=>{e.stopPropagation();setNoteOpen(true);}}>📝</button>
+<button className="btn btn-secondary btn-xs" onClick={e=>{e.stopPropagation();setExpanded(!expanded);}}>{expanded?'▲':'▼'}</button>
+</div>
+</div>
+
+{expanded&&<div style={{marginTop:10,padding:10,background:'var(--surface2)',borderRadius:8,fontSize:12}}>
+<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+{mode==='fantasy'?<>
+<div>Fantasy Score: <b style={{color:scoreColor(fs)}}>{fs}</b></div>
+<div>Consistency: <b>{player.consistency||'—'}</b></div>
+<div>Target Share: <b>{player.targetShare||'—'}%</b></div>
+<div>RZ Usage: <b>{player.rzUsage||'—'}%</b></div>
+<div>Opp Share: <b>{player.oppShare||'—'}%</b></div>
+<div>Injury Risk: <b style={{color:scoreColor(100-bust)}}>{bust}</b></div>
+<div>Breakout: <b style={{color:scoreColor(bk)}}>{bk}</b></div>
+<div>Dynasty Value: <b>{player.dynasty||'—'}</b></div>
+</>:<>
+<div>Overall: <b>{player.ovr||'—'}</b></div>
+<div>Scheme Fit: <b style={{color:scoreColor(sf)}}>{sf}</b></div>
+<div>Speed: <b>{player.speed}</b></div>
+<div>Accel: <b>{player.accel}</b></div>
+<div>Agility: <b>{player.agility}</b></div>
+<div>Strength: <b>{player.strength}</b></div>
+<div>Awareness: <b>{player.awareness}</b></div>
+<div>Dev Trait: <b>{player.dev}</b></div>
+<div>Contract: <b>${player.contract}M</b></div>
+<div>Leadership: <b>{player.leadership}</b></div>
+</>}
+</div>
+</div>}
+
+<Modal open={noteOpen} onClose={()=>setNoteOpen(false)} title={'Notes — '+player.name}>
+<NoteEditor playerId={player.id} onClose={()=>setNoteOpen(false)}/>
+</Modal>
+</div>;
+}
+
+function NoteEditor({playerId,onClose}){
+const {notes,setNotes}=useContext(AppCtx);
+const current=notes[playerId]||{text:'',strengths:'',weaknesses:'',concerns:'',strategy:''};
+const update=(k,v)=>setNotes(prev=>({...prev,[playerId]:{...current,[k]:v}}));
+return <div style={{display:'flex',flexDirection:'column',gap:12}}>
+{[['text','Scouting Notes'],['strengths','Strengths'],['weaknesses','Weaknesses'],['concerns','Concerns'],['strategy','Draft Strategy']].map(([k,label])=>
+<div key={k}><label style={{fontSize:12,fontWeight:600,color:'var(--textDim)',marginBottom:4,display:'block'}}>{label}</label>
+<textarea rows={3} value={current[k]} onChange={e=>update(k,e.target.value)} placeholder={'Enter '+label.toLowerCase()+'...'}/></div>
+)}
+<button className="btn btn-primary" onClick={onClose}>Save & Close</button>
+</div>;
+}
+
+// ═══════════════════════════════════════════════════
+// TIER BOARD (fixed — no prompt(), no random)
+// ═══════════════════════════════════════════════════
+const DEFAULT_TIERS=[
+{id:'t1',name:'Tier 1 — Elite',color:'#22c55e',players:[]},
+{id:'t2',name:'Tier 2 — Great',color:'#3b82f6',players:[]},
+{id:'t3',name:'Tier 3 — Good',color:'#eab308',players:[]},
+{id:'t4',name:'Tier 4 — Average',color:'#f97316',players:[]},
+{id:'t5',name:'Tier 5 — Below',color:'#ef4444',players:[]},
+];
+
+function TierBoard({tiers,setTiers,players,mode,format,offScheme,defScheme}){
+const [dragOver,setDragOver]=useState(null);
+const [editTier,setEditTier]=useState(null);
+const [colorPicker,setColorPicker]=useState(null);
+const [newTierName,setNewTierName]=useState('');
+
+const handleDragOver=(tierId,e)=>{e.preventDefault();e.stopPropagation();setDragOver(tierId);};
+const handleDragLeave=(e)=>{e.stopPropagation();setDragOver(null);};
+
+const handleDrop=(tierId,e)=>{
+e.preventDefault();e.stopPropagation();
+const pid=e.dataTransfer.getData('text/plain');
+if(!pid){setDragOver(null);return;}
+setTiers(prev=>{
+const next=prev.map(t=>({...t,players:t.players.filter(id=>id!==pid)}));
+const idx=next.findIndex(t=>t.id===tierId);
+if(idx>=0&&!next[idx].players.includes(pid))next[idx].players.push(pid);
+return next;
+});
+setDragOver(null);
+};
+
+const addTier=()=>{
+setTiers(prev=>[...prev,{id:'t'+Date.now(),name:newTierName||'New Tier',color:'#64748b',players:[]}]);
+setNewTierName('');
+};
+const removeTier=(id)=>setTiers(prev=>prev.filter(t=>t.id!==id));
+const renameTier=(id,name)=>setTiers(prev=>prev.map(t=>t.id===id?{...t,name}:t));
+const recolorTier=(id,color)=>setTiers(prev=>prev.map(t=>t.id===id?{...t,color}:t));
+
+const untiered=players.filter(p=>!tiers.some(t=>t.players.includes(p.id)));
+
+return <div>
+<div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
+<input style={{width:200}} value={newTierName} onChange={e=>setNewTierName(e.target.value)} placeholder="New tier name..."/>
+<button className="btn btn-primary btn-sm" onClick={addTier}>+ Add Tier</button>
+</div>
+
+{tiers.map(tier=><div key={tier.id} style={{marginBottom:12}}>
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6,flexWrap:'wrap'}}>
+{/* Color picker inline — no prompt() */}
+<div style={{position:'relative'}}>
+<div className="color-dot" style={{background:tier.color}} onClick={()=>setColorPicker(colorPicker===tier.id?null:tier.id)}/>
+{colorPicker===tier.id&&<div style={{position:'absolute',top:28,left:0,zIndex:50,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,padding:6,display:'flex',gap:4,flexWrap:'wrap',width:140}}>
+{TIER_COLORS.map(c=><div key={c} className={'color-dot'+(tier.color===c?' sel':'')} style={{background:c}} onClick={()=>{recolorTier(tier.id,c);setColorPicker(null);}}/>)}
+</div>}
+</div>
+{editTier===tier.id?<input style={{width:200}} value={tier.name} onChange={e=>renameTier(tier.id,e.target.value)} onBlur={()=>setEditTier(null)} autoFocus/>
+:<span style={{fontWeight:700,fontSize:14,cursor:'pointer'}} onClick={()=>setEditTier(tier.id)}>{tier.name}</span>}
+<span style={{fontSize:11,color:'var(--textDim)'}}>({tier.players.length})</span>
+<button className="btn btn-secondary btn-xs" onClick={()=>removeTier(tier.id)}>✕</button>
+</div>
+<div className={'tier-zone'+(dragOver===tier.id?' drag-over':'')}
+onDragOver={e=>handleDragOver(tier.id,e)}
+onDragLeave={handleDragLeave}
+onDrop={e=>handleDrop(tier.id,e)}
+style={{borderColor:tier.color+'60'}}>
+<div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+{tier.players.map(pid=>{
+const pl=players.find(p=>p.id===pid);
+if(!pl)return null;
+const sc=mode==='fantasy'?calcFantasyScore(pl,format):calcFranchiseScore(pl,offScheme,defScheme);
+return <div key={pid} className="player-chip" draggable
+onDragStart={e=>{e.dataTransfer.setData('text/plain',pid);e.dataTransfer.effectAllowed='move';}}
+style={{borderLeftColor:tier.color,borderLeftWidth:3}}>
+<span style={{fontWeight:600}}>{pl.name}</span>
+<span className="badge badge-blue" style={{fontSize:10}}>{pl.pos}</span>
+<span style={{fontSize:11,fontWeight:700,color:scoreColor(sc)}}>{sc}</span>
+</div>;
+})}
+{tier.players.length===0&&<span style={{fontSize:12,color:'var(--textDim)',padding:8}}>Drop players here</span>}
+</div>
+</div>
+</div>)}
+
+<div style={{marginTop:16}}>
+<h4 style={{fontSize:14,fontWeight:700,marginBottom:8,color:'var(--textDim)'}}>Untiered Players ({untiered.length})</h4>
+<div style={{display:'flex',gap:6,flexWrap:'wrap',maxHeight:300,overflowY:'auto',padding:4}}>
+{untiered.map(pl=>{
+const sc=mode==='fantasy'?calcFantasyScore(pl,format):calcFranchiseScore(pl,offScheme,defScheme);
+return <div key={pl.id} className="player-chip" draggable
+onDragStart={e=>{e.dataTransfer.setData('text/plain',pl.id);e.dataTransfer.effectAllowed='move';}}>
+<span style={{fontWeight:600}}>{pl.name}</span>
+<span className="badge badge-blue" style={{fontSize:10}}>{pl.pos}</span>
+<span style={{fontSize:11,fontWeight:700,color:scoreColor(sc)}}>{sc}</span>
+</div>;
+})}
+</div>
+</div>
+</div>;
+}
+
+// ═══════════════════════════════════════════════════
+// MY TEAM VIEW
+// ═══════════════════════════════════════════════════
+function MyTeamView({draftedIds,players,mode,format,offScheme,defScheme,onUndraft}){
+const drafted=players.filter(p=>draftedIds.has(p.id));
+const byPos={};drafted.forEach(p=>{if(!byPos[p.pos])byPos[p.pos]=[];byPos[p.pos].push(p);});
+const posOrder=['QB','RB','WR','TE','K','DEF'];
+
+if(drafted.length===0)return <div className="card" style={{textAlign:'center',padding:40}}>
+<div style={{fontSize:48,marginBottom:12}}>🏈</div>
+<h3 style={{fontSize:18,fontWeight:700,marginBottom:8}}>No Players Drafted Yet</h3>
+<p style={{color:'var(--textDim)',fontSize:14}}>Use the checkboxes on the Big Board to mark players as drafted. They will appear here as your roster.</p>
+</div>;
+
+return <div>
+<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
+<h3 style={{fontSize:18,fontWeight:700}}>My Team ({drafted.length} players)</h3>
+</div>
+<div style={{display:'grid',gap:16}}>
+{posOrder.map(pos=>{
+const group=byPos[pos];
+if(!group||group.length===0)return null;
+return <div key={pos} className="card">
+<h4 style={{fontWeight:700,fontSize:14,marginBottom:12,display:'flex',alignItems:'center',gap:8}}>
+<span className="badge badge-blue">{pos}</span> {pos==='QB'?'Quarterbacks':pos==='RB'?'Running Backs':pos==='WR'?'Wide Receivers':pos==='TE'?'Tight Ends':pos==='K'?'Kickers':'Defense/Special Teams'} ({group.length})
+</h4>
+<div style={{display:'flex',flexDirection:'column',gap:8}}>
+{group.map(p=>{
+const sc=mode==='fantasy'?calcFantasyScore(p,format):calcFranchiseScore(p,offScheme,defScheme);
+const sf=calcSchemeFit(p,offScheme,defScheme);
+return <div key={p.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 12px',background:'var(--surface2)',borderRadius:8,gap:12,flexWrap:'wrap'}}>
+<div style={{flex:1,minWidth:180}}>
+<div style={{fontWeight:700,fontSize:14}}>{p.name}</div>
+<div style={{fontSize:12,color:'var(--textDim)'}}>{p.team||p.college} · Age {p.age}{p.exp?' · '+p.exp+'yr exp':''}</div>
+</div>
+<div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+{mode==='fantasy'?<>
+<span className="badge badge-blue">{p.fantPts||'—'} FPPG</span>
+<span className={'badge '+scoreBadge(sc)}>Score {sc}</span>
+<span className={'badge '+scoreBadge(getBreakoutScore(p))}>Breakout {getBreakoutScore(p)}</span>
+</>:<>
+<span className="badge badge-blue">OVR {p.ovr||'—'}</span>
+<span className={'badge '+scoreBadge(sf)}>Fit {sf}</span>
+<span className={'badge '+scoreBadge(sc)}>Score {sc}</span>
+</>}
+<button className="btn btn-danger btn-xs" onClick={()=>onUndraft(p.id)}>Remove</button>
+</div>
+</div>;
+})}
+</div>
+</div>;
+})}
+</div>
+</div>;
+}
+
+// ═══════════════════════════════════════════════════
+// DASHBOARDS
+// ═══════════════════════════════════════════════════
+function FantasyDashboard({players,format}){
+const nfl=players.filter(p=>p.type!=='prospect');
+const scored=nfl.map(p=>({...p,fs:calcFantasyScore(p,format)})).sort((a,b)=>b.fs-a.fs);
+const topPlayers=scored.slice(0,10);
+const sleepers=nfl.map(p=>({...p,sl:getSleeperRating(p)})).sort((a,b)=>b.sl-a.sl).slice(0,8);
+const breakouts=nfl.map(p=>({...p,bk:getBreakoutScore(p)})).sort((a,b)=>b.bk-a.bk).slice(0,8);
+
+return <div className="grid-auto">
+<div className="card">
+<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>🏆 Top Ranked</h4>
+{topPlayers.map((p,i)=><div key={p.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',borderBottom:'1px solid var(--border)'}}>
+<div><span style={{color:'var(--textDim)',marginRight:8,fontSize:12}}>#{i+1}</span><span style={{fontWeight:600,fontSize:13}}>{p.name}</span> <span style={{fontSize:11,color:'var(--textDim)'}}>{p.pos} · {p.team}</span></div>
+<span style={{fontWeight:700,color:scoreColor(p.fs)}}>{p.fs}</span>
+</div>)}
+</div>
+<div className="card">
+<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>😴 Sleeper Alerts</h4>
+{sleepers.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}>
+<span style={{fontWeight:600,fontSize:13}}>{p.name} <span style={{fontSize:11,color:'var(--textDim)'}}>{p.pos} · {p.team}</span></span>
+<span className={'badge '+scoreBadge(p.sl)}>Sleeper {p.sl}</span>
+</div>)}
+</div>
+<div className="card">
+<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>🚀 Breakout Candidates</h4>
+{breakouts.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}>
+<span style={{fontWeight:600,fontSize:13}}>{p.name} <span style={{fontSize:11,color:'var(--textDim)'}}>{p.pos} · {p.team}</span></span>
+<span className={'badge '+scoreBadge(p.bk)}>Breakout {p.bk}</span>
+</div>)}
+</div>
+<div className="card">
+<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>📊 Position Scarcity</h4>
+{POSITIONS.map(pos=>{const group=scored.filter(p=>p.pos===pos);const avg=group.length?Math.round(group.reduce((s,p)=>s+p.fs,0)/group.length):0;
+return <div key={pos} style={{marginBottom:8}}>
+<div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:4}}>
+<span style={{fontWeight:600}}>{pos}</span><span style={{color:'var(--textDim)'}}>{group.length} players · Avg {avg}</span>
+</div><ScoreBar value={avg}/></div>;
+})}
+</div>
+</div>;
+}
+
+function FranchiseDashboard({players,offScheme,defScheme}){
+const scored=players.map(p=>({...p,fr:calcFranchiseScore(p,offScheme,defScheme),sf:calcSchemeFit(p,offScheme,defScheme)})).sort((a,b)=>b.fr-a.fr);
+const topFits=scored.filter(p=>p.pos!=='DEF').sort((a,b)=>b.sf-a.sf).slice(0,8);
+const futureStars=scored.filter(p=>p.age<25).sort((a,b)=>b.fr-a.fr).slice(0,8);
+const tradeValues=scored.filter(p=>p.contract>0).sort((a,b)=>(b.fr/Math.max(1,b.contract))-(a.fr/Math.max(1,a.contract))).slice(0,8);
+return <div className="grid-auto">
+<div className="card"><h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>🏈 Top Franchise Scores</h4>
+{scored.slice(0,10).map((p,i)=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}><div><span style={{color:'var(--textDim)',marginRight:8,fontSize:12}}>#{i+1}</span><span style={{fontWeight:600,fontSize:13}}>{p.name}</span> <span style={{fontSize:11,color:'var(--textDim)'}}>{p.pos}</span></div><span style={{fontWeight:700,color:scoreColor(p.fr)}}>{p.fr}</span></div>)}</div>
+<div className="card"><h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>🎯 Best Scheme Fits ({offScheme})</h4>
+{topFits.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}><span style={{fontWeight:600,fontSize:13}}>{p.name} <span style={{fontSize:11,color:'var(--textDim)'}}>{p.pos}</span></span><span className={'badge '+scoreBadge(p.sf)}>Fit {p.sf}</span></div>)}</div>
+<div className="card"><h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>⭐ Future Stars (Under 25)</h4>
+{futureStars.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}><span style={{fontWeight:600,fontSize:13}}>{p.name} <span style={{fontSize:11,color:'var(--textDim)'}}>{p.pos} · Age {p.age}</span></span><span style={{fontWeight:700,color:scoreColor(p.fr)}}>{p.fr}</span></div>)}</div>
+<div className="card"><h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>💰 Best Value Contracts</h4>
+{tradeValues.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}><span style={{fontWeight:600,fontSize:13}}>{p.name} <span style={{fontSize:11,color:'var(--textDim)'}}>${p.contract}M</span></span><span style={{fontWeight:700,color:scoreColor(p.fr)}}>{p.fr}</span></div>)}</div>
+</div>;
+}
+
+function CollabDashboard({players,gms}){
+const withVotes=players.map(p=>{const v1=(gms[0]?.votes||{})[p.id]||0;const v2=(gms[1]?.votes||{})[p.id]||0;return{...p,v1,v2,total:v1+v2,diff:Math.abs(v1-v2)};});
+const mostLoved=withVotes.filter(p=>p.total>0).sort((a,b)=>b.total-a.total).slice(0,8);
+const polarizing=withVotes.filter(p=>p.total>0&&p.diff>0).sort((a,b)=>b.diff-a.diff).slice(0,8);
+const noVotes=withVotes.filter(p=>p.total===0);
+const totalV1=Object.values(gms[0]?.votes||{}).reduce((s,v)=>s+v,0);
+const totalV2=Object.values(gms[1]?.votes||{}).reduce((s,v)=>s+v,0);
+const agreement=mostLoved.length?Math.round((mostLoved.filter(p=>p.v1>0&&p.v2>0).length/mostLoved.length)*100):0;
+return <div className="grid-auto">
+<div className="card"><h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>❤️ Most Loved (Combined Votes)</h4>
+{mostLoved.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}><span style={{fontWeight:600,fontSize:13}}>{p.name}</span><div style={{display:'flex',gap:6}}>{gms[0]?.name&&<span style={{fontSize:11,color:gms[0].color}}>{p.v1}</span>}{gms[1]?.name&&<span style={{fontSize:11,color:gms[1].color}}>{p.v2}</span>}<span style={{fontWeight:700,fontSize:12}}>= {p.total}</span></div></div>)}
+{mostLoved.length===0&&<span style={{fontSize:12,color:'var(--textDim)'}}>No votes cast yet</span>}</div>
+<div className="card"><h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>⚡ Most Polarizing</h4>
+{polarizing.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}><span style={{fontWeight:600,fontSize:13}}>{p.name}</span><span className="badge badge-red">Δ {p.diff}</span></div>)}
+{polarizing.length===0&&<span style={{fontSize:12,color:'var(--textDim)'}}>No polarizing picks yet</span>}</div>
+<div className="card"><h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>📊 Agreement Score</h4>
+<div style={{textAlign:'center',padding:16}}><div style={{fontSize:48,fontWeight:800,color:scoreColor(agreement)}}>{agreement}%</div><div style={{color:'var(--textDim)',fontSize:13}}>GM Consensus</div>
+<div style={{marginTop:12,display:'flex',justifyContent:'center',gap:24}}>
+{gms[0]?.name&&<div><div style={{fontSize:20,fontWeight:700,color:gms[0].color}}>{totalV1}/50</div><div style={{fontSize:11,color:'var(--textDim)'}}>{gms[0].name}</div></div>}
+{gms[1]?.name&&<div><div style={{fontSize:20,fontWeight:700,color:gms[1].color}}>{totalV2}/50</div><div style={{fontSize:11,color:'var(--textDim)'}}>{gms[1].name}</div></div>}
+</div></div></div>
+<div className="card"><h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>🔇 No Votes ({noVotes.length})</h4>
+<div style={{maxHeight:200,overflowY:'auto'}}>{noVotes.slice(0,15).map(p=><div key={p.id} style={{padding:'4px 0',fontSize:12,color:'var(--textDim)'}}>{p.name} · {p.pos}</div>)}</div></div>
+</div>;
+}
+
+// ═══════════════════════════════════════════════════
+// RECOMMENDATIONS (NFL PLAYERS ONLY for Fantasy)
+// ═══════════════════════════════════════════════════
+function Recommendations({players,mode,format,offScheme,defScheme}){
+if(mode==='fantasy'){
+// ONLY NFL players — no college prospects
+const nfl=players.filter(p=>p.type!=='prospect');
+const scored=nfl.map(p=>({...p,fs:calcFantasyScore(p,format),sl:getSleeperRating(p),bust:getBustRisk(p),bk:getBreakoutScore(p)}));
+const sleepers=[...scored].sort((a,b)=>b.sl-a.sl).slice(0,6);
+const leagueWinners=scored.filter(p=>p.bk>40&&p.fs>55).sort((a,b)=>b.bk-a.bk).slice(0,6);
+const breakouts=[...scored].sort((a,b)=>b.bk-a.bk).slice(0,6);
+const busts=[...scored].sort((a,b)=>b.bust-a.bust).slice(0,6);
+const values=scored.filter(p=>p.fs>60).sort((a,b)=>a.fs-b.fs).slice(0,6);
+const handcuffs=scored.filter(p=>p.pos==='RB'&&p.oppShare>40&&p.oppShare<70).sort((a,b)=>b.fs-a.fs).slice(0,6);
+
+return <div className="grid-auto">
+{[['😴 Sleepers',sleepers,'sl','Sleeper'],['🏆 League Winners',leagueWinners,'bk','Breakout'],['🚀 Breakout',breakouts,'bk','Breakout'],['⚠️ Bust Risks',busts,'bust','Bust'],['💎 Value Picks',values,'fs','Score'],['🔗 Handcuffs',handcuffs,'fs','Score']].map(([title,list,key,label])=>
+<div className="card" key={title}>
+<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>{title}</h4>
+{list.length===0&&<span style={{fontSize:12,color:'var(--textDim)'}}>None found</span>}
+{list.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid var(--border)'}}>
+<span style={{fontSize:13}}><b>{p.name}</b> <span style={{color:'var(--textDim)'}}>{p.pos} · {p.team}</span></span>
+<span className={'badge '+scoreBadge(key==='bust'?100-p[key]:p[key])}>{label} {p[key]}</span>
+</div>)}
+</div>)}
+</div>;
+}else{
+const scored=players.map(p=>({...p,fr:calcFranchiseScore(p,offScheme,defScheme),sf:calcSchemeFit(p,offScheme,defScheme)}));
+const futureStars=scored.filter(p=>p.age<25).sort((a,b)=>b.fr-a.fr).slice(0,6);
+const schemeFits=[...scored].sort((a,b)=>b.sf-a.sf).slice(0,6);
+const bestContracts=scored.filter(p=>p.contract>0).sort((a,b)=>(b.fr/Math.max(1,b.contract))-(a.fr/Math.max(1,a.contract))).slice(0,6);
+const cornerstones=[...scored].sort((a,b)=>b.fr-a.fr).slice(0,6);
+const devTargets=scored.filter(p=>(p.dev==='Superstar'||p.dev==='Superstar X-Factor')&&p.age<26).sort((a,b)=>b.fr-a.fr).slice(0,6);
+return <div className="grid-auto">
+{[['⭐ Future Stars',futureStars,'fr','Score'],['🎯 Scheme Fits',schemeFits,'sf','Fit'],['💰 Best Value',bestContracts,'fr','Score'],['🏛️ Cornerstones',cornerstones,'fr','Score'],['📈 Dev Targets',devTargets,'fr','Score']].map(([title,list,key,label])=>
+<div className="card" key={title}><h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>{title}</h4>
+{list.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid var(--border)'}}><span style={{fontSize:13}}><b>{p.name}</b> <span style={{color:'var(--textDim)'}}>{p.pos}</span></span><span className={'badge '+scoreBadge(p[key])}>{label} {p[key]}</span></div>)}</div>)}
+</div>;
+}
+}
+
+// ═══════════════════════════════════════════════════
+// GM SETUP
+// ═══════════════════════════════════════════════════
+function GMSetup({gms,setGms}){
+const [pins,setPins]=useState(['','']);
+const colors=['#3b82f6','#ef4444','#22c55e','#eab308','#8b5cf6','#f97316','#ec4899','#06b6d4'];
+return <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+{[0,1].map(i=><div key={i} className="card">
+<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>GM {i+1}</h4>
+<div style={{display:'flex',flexDirection:'column',gap:8}}>
+<input placeholder="GM Name" value={gms[i]?.name||''} onChange={e=>{const g=[...gms];g[i]={...g[i],name:e.target.value};setGms(g);}}/>
+<input type="password" maxLength={4} placeholder="4-digit PIN" value={pins[i]} onChange={e=>{const v=e.target.value.replace(/\D/g,'').slice(0,4);const p=[...pins];p[i]=v;setPins(p);if(v.length===4){const g=[...gms];g[i]={...g[i],pin:v};setGms(g);}}}/>
+<div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+{colors.map(c=><div key={c} onClick={()=>{const g=[...gms];g[i]={...g[i],color:c};setGms(g);}}
+style={{width:28,height:28,borderRadius:6,background:c,cursor:'pointer',border:gms[i]?.color===c?'3px solid var(--text)':'3px solid transparent'}}/>)}
+</div>
+<div style={{fontSize:12,color:'var(--textDim)'}}>Votes used: {Object.values(gms[i]?.votes||{}).reduce((s,v)=>s+v,0)}/50</div>
+</div>
+</div>)}
+</div>;
+}
+
+// ═══════════════════════════════════════════════════
+// BOARD MANAGER (with password protection)
+// ═══════════════════════════════════════════════════
+function BoardManager({boards,setBoards,activeBoard,setActiveBoard,onSaveAll,onLoadAll}){
+const [newName,setNewName]=useState('');
+const [editingId,setEditingId]=useState(null);
+const [pwModal,setPwModal]=useState(null); // {boardId,action:'open'|'setPw'}
+const [pwInput,setPwInput]=useState('');
+const [newPw,setNewPw]=useState('');
+
+const createBoard=()=>{
+const b={id:'b'+Date.now(),name:newName||'New Board',created:Date.now(),archived:false,password:'',
+tiers:DEFAULT_TIERS.map(t=>({...t,players:[]})),
+format:'halfPpr',offScheme:'Balanced',defScheme:'4-3 Base',
+gms:[{name:'',color:'#3b82f6',pin:'',votes:{}},{name:'',color:'#ef4444',pin:'',votes:{}}],
+notes:{},tags:{},filters:{},draftedIds:[]};
+setBoards(prev=>[...prev,b]);setActiveBoard(b.id);setNewName('');
+};
+const duplicateBoard=(b)=>{
+const dup={...JSON.parse(JSON.stringify(b)),id:'b'+Date.now(),name:b.name+' (Copy)',created:Date.now()};
+setBoards(prev=>[...prev,dup]);
+};
+const archiveBoard=(id)=>setBoards(prev=>prev.map(b=>b.id===id?{...b,archived:!b.archived}:b));
+const deleteBoard=(id)=>{setBoards(prev=>prev.filter(b=>b.id!==id));if(activeBoard===id)setActiveBoard(null);};
+const exportBoard=(b)=>{
+const blob=new Blob([JSON.stringify(b,null,2)],{type:'application/json'});
+const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=b.name+'.json';a.click();
+};
+const importBoard=(e)=>{
+const file=e.target.files[0];if(!file)return;
+const r=new FileReader();r.onload=ev=>{try{const b=JSON.parse(ev.target.result);b.id='b'+Date.now();setBoards(prev=>[...prev,b]);}catch(err){/* ignore */}};r.readAsText(file);
+e.target.value='';
+};
+
+const tryOpenBoard=(b)=>{
+if(b.password){setPwModal({boardId:b.id,action:'open'});setPwInput('');}
+else setActiveBoard(b.id);
+};
+const confirmPw=()=>{
+const b=boards.find(bb=>bb.id===pwModal.boardId);
+if(b&&pwInput===b.password){setActiveBoard(b.id);setPwModal(null);setPwInput('');}
+else{setPwInput('');/* wrong password */}
+};
+const setPassword=(boardId)=>{
+setBoards(prev=>prev.map(b=>b.id===boardId?{...b,password:newPw}:b));
+setNewPw('');setPwModal(null);
+};
+
+const active=boards.filter(b=>!b.archived);
+const archived=boards.filter(b=>b.archived);
+
+return <div>
+<div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
+<input style={{width:200}} value={newName} onChange={e=>setNewName(e.target.value)} placeholder="Board name..."/>
+<button className="btn btn-primary btn-sm" onClick={createBoard}>+ New Board</button>
+<label className="btn btn-secondary btn-sm" style={{cursor:'pointer'}}>📥 Import<input type="file" accept=".json" onChange={importBoard} style={{display:'none'}}/></label>
+<button className="btn btn-success btn-sm" onClick={onSaveAll}>💾 Save All</button>
+<label className="btn btn-secondary btn-sm" style={{cursor:'pointer'}}>📂 Load Save<input type="file" accept=".json" onChange={onLoadAll} style={{display:'none'}}/></label>
+</div>
+<div style={{display:'flex',flexDirection:'column',gap:6}}>
+{active.map(b=><div key={b.id} className="card-sm" style={{display:'flex',justifyContent:'space-between',alignItems:'center',
+background:activeBoard===b.id?'var(--accent)':'var(--surface)',color:activeBoard===b.id?'#fff':'var(--text)',cursor:'pointer'}}
+onClick={()=>tryOpenBoard(b)}>
+<div style={{display:'flex',alignItems:'center',gap:8}}>
+{b.password&&<span style={{fontSize:14}}>🔒</span>}
+{editingId===b.id?<input value={b.name} onClick={e=>e.stopPropagation()} onChange={e=>setBoards(prev=>prev.map(bb=>bb.id===b.id?{...bb,name:e.target.value}:bb))} onBlur={()=>setEditingId(null)} autoFocus style={{width:150}}/>
+:<span style={{fontWeight:600,fontSize:13}}>{b.name}</span>}
+</div>
+<div style={{display:'flex',gap:4}} onClick={e=>e.stopPropagation()}>
+<button className="btn btn-xs btn-secondary" onClick={()=>setEditingId(b.id)}>✏️</button>
+<button className="btn btn-xs btn-secondary" onClick={()=>{setPwModal({boardId:b.id,action:'setPw'});setNewPw(b.password||'');}}>🔐</button>
+<button className="btn btn-xs btn-secondary" onClick={()=>duplicateBoard(b)}>📋</button>
+<button className="btn btn-xs btn-secondary" onClick={()=>exportBoard(b)}>📤</button>
+<button className="btn btn-xs btn-secondary" onClick={()=>archiveBoard(b.id)}>📦</button>
+<button className="btn btn-xs btn-danger" onClick={()=>deleteBoard(b.id)}>🗑</button>
+</div>
+</div>)}
+</div>
+{archived.length>0&&<div style={{marginTop:16}}>
+<h5 style={{fontSize:12,fontWeight:600,color:'var(--textDim)',marginBottom:8}}>ARCHIVED</h5>
+{archived.map(b=><div key={b.id} className="card-sm" style={{display:'flex',justifyContent:'space-between',alignItems:'center',opacity:.6,marginBottom:4}}>
+<span style={{fontSize:13}}>{b.name}</span>
+<div style={{display:'flex',gap:4}}><button className="btn btn-xs btn-secondary" onClick={()=>archiveBoard(b.id)}>Restore</button><button className="btn btn-xs btn-danger" onClick={()=>deleteBoard(b.id)}>🗑</button></div>
+</div>)}
+</div>}
+
+{/* Password Modal */}
+<Modal open={!!pwModal} onClose={()=>setPwModal(null)} title={pwModal?.action==='open'?'Enter Board Password':'Set Board Password'}>
+{pwModal?.action==='open'?<div style={{display:'flex',flexDirection:'column',gap:12,alignItems:'center'}}>
+<p style={{fontSize:13,color:'var(--textDim)'}}>This board is password protected.</p>
+<input type="password" value={pwInput} onChange={e=>setPwInput(e.target.value)} placeholder="Enter password..." style={{width:240,textAlign:'center'}}
+onKeyDown={e=>{if(e.key==='Enter')confirmPw();}}/>
+<button className="btn btn-primary" onClick={confirmPw}>Unlock</button>
+</div>:<div style={{display:'flex',flexDirection:'column',gap:12,alignItems:'center'}}>
+<p style={{fontSize:13,color:'var(--textDim)'}}>Set a password to protect this board. Leave blank to remove protection.</p>
+<input type="password" value={newPw} onChange={e=>setNewPw(e.target.value)} placeholder="New password (or blank to remove)..." style={{width:280,textAlign:'center'}}/>
+<button className="btn btn-primary" onClick={()=>setPassword(pwModal.boardId)}>{newPw?'Set Password':'Remove Password'}</button>
+</div>}
+</Modal>
+</div>;
+}
+
+// ═══════════════════════════════════════════════════
+// MAIN APP
+// ═══════════════════════════════════════════════════
+function App(){
+const [darkMode,setDarkMode]=useState(true);
+const [mode,setMode]=useState('fantasy');
+const [view,setView]=useState('board');
+const [boards,setBoards]=useState([{
+id:'b1',name:'My Draft Board',created:Date.now(),archived:false,password:'',
+tiers:DEFAULT_TIERS.map(t=>({...t,players:[]})),
+format:'halfPpr',offScheme:'Balanced',defScheme:'4-3 Base',
+gms:[{name:'',color:'#3b82f6',pin:'',votes:{}},{name:'',color:'#ef4444',pin:'',votes:{}}],
+notes:{},tags:{},filters:{},draftedIds:[]}]);
+const [activeBoard,setActiveBoard]=useState('b1');
+const [search,setSearch]=useState('');
+const [posFilter,setPosFilter]=useState('ALL');
+const [typeFilter,setTypeFilter]=useState('ALL');
+const [sortBy,setSortBy]=useState('score');
+const [sidebarOpen,setSidebarOpen]=useState(true);
+const [gmSetupOpen,setGmSetupOpen]=useState(false);
+const [notes,setNotes]=useState({});
+const [pinModal,setPinModal]=useState(null);
+const [pinInput,setPinInput]=useState('');
+
+const board=boards.find(b=>b.id===activeBoard);
+const format=board?.format||'halfPpr';
+const offScheme=board?.offScheme||'Balanced';
+const defScheme=board?.defScheme||'4-3 Base';
+const gms=board?.gms||[{name:'',color:'#3b82f6',pin:'',votes:{}},{name:'',color:'#ef4444',pin:'',votes:{}}];
+const draftedIds=useMemo(()=>new Set(board?.draftedIds||[]),[board?.draftedIds]);
+
+const updateBoard=(updates)=>setBoards(prev=>prev.map(b=>b.id===activeBoard?{...b,...updates}:b));
+
+const toggleDraft=(playerId)=>{
+const current=board?.draftedIds||[];
+const next=current.includes(playerId)?current.filter(id=>id!==playerId):[...current,playerId];
+updateBoard({draftedIds:next});
+};
+
+// ── Save / Load All ──
+const saveAllBoards=()=>{
+const data={boards,notes,savedAt:new Date().toISOString()};
+const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='war-room-save-'+new Date().toISOString().slice(0,10)+'.json';a.click();
+};
+const loadAllBoards=(e)=>{
+const file=e.target.files[0];if(!file)return;
+const r=new FileReader();r.onload=ev=>{
+try{
+const data=JSON.parse(ev.target.result);
+if(data.boards){setBoards(data.boards);setActiveBoard(data.boards[0]?.id||null);}
+if(data.notes)setNotes(data.notes);
+}catch(err){/* ignore */}
+};r.readAsText(file);e.target.value='';
+};
+
+const filteredPlayers=useMemo(()=>{
+let list=[...ALL_PLAYERS];
+if(search)list=list.filter(p=>p.name.toLowerCase().includes(search.toLowerCase())||p.team?.toLowerCase().includes(search.toLowerCase())||p.college?.toLowerCase().includes(search.toLowerCase()));
+if(posFilter!=='ALL')list=list.filter(p=>p.pos===posFilter);
+if(typeFilter==='veteran')list=list.filter(p=>p.type==='veteran');
+if(typeFilter==='rookie')list=list.filter(p=>p.type==='rookie');
+if(typeFilter==='prospect')list=list.filter(p=>p.type==='prospect');
+
+list=list.map(p=>({...p,_fs:calcFantasyScore(p,format),_fr:calcFranchiseScore(p,offScheme,defScheme),_sl:getSleeperRating(p),_bust:getBustRisk(p),_bk:getBreakoutScore(p),_sf:calcSchemeFit(p,offScheme,defScheme)}));
+
+if(sortBy==='score')list.sort((a,b)=>mode==='fantasy'?b._fs-a._fs:b._fr-a._fr);
+else if(sortBy==='name')list.sort((a,b)=>a.name.localeCompare(b.name));
+else if(sortBy==='age')list.sort((a,b)=>a.age-b.age);
+else if(sortBy==='sleeper')list.sort((a,b)=>b._sl-a._sl);
+else if(sortBy==='breakout')list.sort((a,b)=>b._bk-a._bk);
+else if(sortBy==='bust')list.sort((a,b)=>b._bust-a._bust);
+else if(sortBy==='schemeFit')list.sort((a,b)=>b._sf-a._sf);
+else if(sortBy==='votes'){list.sort((a,b)=>{const va=((gms[0]?.votes||{})[a.id]||0)+((gms[1]?.votes||{})[a.id]||0);const vb=((gms[0]?.votes||{})[b.id]||0)+((gms[1]?.votes||{})[b.id]||0);return vb-va;});}
+return list;
+},[search,posFilter,typeFilter,sortBy,mode,format,offScheme,defScheme,gms]);
+
+const handleVote=(gmIdx,playerId,delta)=>{
+if(!gms[gmIdx]?.pin){setGmSetupOpen(true);return;}
+setPinModal({gmIdx,playerId,delta});setPinInput('');
+};
+const confirmVote=()=>{
+if(!pinModal)return;const{gmIdx,playerId,delta}=pinModal;
+if(pinInput!==gms[gmIdx].pin){setPinInput('');return;}
+const currentVotes={...gms[gmIdx].votes};const current=currentVotes[playerId]||0;
+const totalUsed=Object.values(currentVotes).reduce((s,v)=>s+v,0);
+const newVal=Math.max(0,current+delta);
+if(delta>0&&totalUsed>=50){setPinModal(null);return;}
+currentVotes[playerId]=newVal;if(newVal===0)delete currentVotes[playerId];
+const newGms=[...gms];newGms[gmIdx]={...newGms[gmIdx],votes:currentVotes};
+updateBoard({gms:newGms});setPinModal(null);setPinInput('');
+};
+
+useEffect(()=>{document.body.className=darkMode?'':'light';},[darkMode]);
+
+const views={board:'📋 Big Board',tiers:'🏗️ Tier Board',myteam:'🏟️ My Team',dashboard:'📊 Dashboard',recs:'💡 Recommendations',collab:'🤝 Collaboration',boards:'📁 Boards'};
+const draftedCount=draftedIds.size;
+
+return <AppCtx.Provider value={{notes,setNotes}}>
+<div style={{display:'flex',height:'100vh',overflow:'hidden'}}>
+{/* Sidebar */}
+{sidebarOpen&&<div className="sidebar" style={{display:'flex',flexDirection:'column'}}>
+<div style={{padding:16,borderBottom:'1px solid var(--border)'}}>
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+<span style={{fontSize:20}}>🏈</span>
+<h1 style={{fontSize:18,fontWeight:800,background:'linear-gradient(135deg,var(--accent),var(--accent2))',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>WAR ROOM</h1>
+</div>
+<div style={{display:'flex',gap:4,background:'var(--surface2)',borderRadius:8,padding:3}}>
+<button className={'tab '+(mode==='fantasy'?'active':'')} style={{flex:1,fontSize:12}} onClick={()=>setMode('fantasy')}>Fantasy</button>
+<button className={'tab '+(mode==='madden'?'active':'')} style={{flex:1,fontSize:12}} onClick={()=>setMode('madden')}>Madden</button>
+</div>
+</div>
+
+<div style={{padding:12,flex:1,overflowY:'auto'}}>
+{Object.entries(views).map(([k,label])=>
+<button key={k} className={'tab '+(view===k?'active':'')} onClick={()=>setView(k)}
+style={{display:'block',width:'100%',textAlign:'left',marginBottom:4}}>
+{label}{k==='myteam'&&draftedCount>0?' ('+draftedCount+')':''}
+</button>
+)}
+
+<div style={{borderTop:'1px solid var(--border)',marginTop:12,paddingTop:12}}>
+<button className="btn btn-secondary btn-sm" style={{width:'100%',marginBottom:6}} onClick={()=>setGmSetupOpen(true)}>👥 GM Setup</button>
+</div>
+
+<div style={{borderTop:'1px solid var(--border)',marginTop:12,paddingTop:12}}>
+<label style={{fontSize:11,fontWeight:600,color:'var(--textDim)',display:'block',marginBottom:4}}>
+{mode==='fantasy'?'SCORING FORMAT':'OFFENSIVE SCHEME'}
+</label>
+{mode==='fantasy'?
+<select value={format} onChange={e=>updateBoard({format:e.target.value})}>
+{Object.entries(SCORING_FORMATS).map(([k,v])=><option key={k} value={k}>{v.label}</option>)}
+</select>:
+<select value={offScheme} onChange={e=>updateBoard({offScheme:e.target.value})}>
+{OFF_SCHEMES.map(s=><option key={s} value={s}>{s}</option>)}
+</select>}
+{mode==='madden'&&<>
+<label style={{fontSize:11,fontWeight:600,color:'var(--textDim)',display:'block',marginBottom:4,marginTop:8}}>DEFENSIVE SCHEME</label>
+<select value={defScheme} onChange={e=>updateBoard({defScheme:e.target.value})}>
+{DEF_SCHEMES.map(s=><option key={s} value={s}>{s}</option>)}
+</select></>}
+</div>
+
+{board&&<div style={{borderTop:'1px solid var(--border)',marginTop:12,paddingTop:12}}>
+<label style={{fontSize:11,fontWeight:600,color:'var(--textDim)',display:'block',marginBottom:4}}>ACTIVE BOARD</label>
+<div style={{fontSize:13,fontWeight:600,display:'flex',alignItems:'center',gap:6}}>{board.password&&<span>🔒</span>}{board.name}</div>
+</div>}
+
+{(gms[0]?.name||gms[1]?.name)&&<div style={{borderTop:'1px solid var(--border)',marginTop:12,paddingTop:12}}>
+<label style={{fontSize:11,fontWeight:600,color:'var(--textDim)',display:'block',marginBottom:6}}>GM STATUS</label>
+{gms.map((gm,i)=>gm.name?<div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+<div style={{display:'flex',alignItems:'center',gap:6}}><div style={{width:10,height:10,borderRadius:'50%',background:gm.color}}/><span style={{fontSize:12,fontWeight:600}}>{gm.name}</span></div>
+<span style={{fontSize:11,color:'var(--textDim)'}}>{Object.values(gm.votes).reduce((s,v)=>s+v,0)}/50</span>
+</div>:null)}
+</div>}
+</div>
+
+<div style={{padding:12,borderTop:'1px solid var(--border)',display:'flex',justifyContent:'space-between'}}>
+<button className="btn btn-secondary btn-xs" onClick={()=>setDarkMode(!darkMode)}>{darkMode?'☀️ Light':'🌙 Dark'}</button>
+<button className="btn btn-secondary btn-xs" onClick={saveAllBoards}>💾 Save</button>
+</div>
+</div>}
+
+{/* Main */}
+<div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+<div style={{padding:'12px 20px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:12,flexWrap:'wrap',background:'var(--surface)'}}>
+<button className="btn btn-secondary btn-sm" onClick={()=>setSidebarOpen(!sidebarOpen)}>☰</button>
+{(view==='board'||view==='tiers')&&<>
+<input style={{width:220}} placeholder="Search players..." value={search} onChange={e=>setSearch(e.target.value)}/>
+<select style={{width:90}} value={posFilter} onChange={e=>setPosFilter(e.target.value)}>
+<option value="ALL">All Pos</option>
+{POSITIONS.map(p=><option key={p} value={p}>{p}</option>)}
+</select>
+<select style={{width:105}} value={typeFilter} onChange={e=>setTypeFilter(e.target.value)}>
+<option value="ALL">All Types</option>
+<option value="veteran">Veterans</option>
+<option value="rookie">Rookies</option>
+<option value="prospect">Prospects</option>
+</select>
+<select style={{width:120}} value={sortBy} onChange={e=>setSortBy(e.target.value)}>
+<option value="score">{mode==='fantasy'?'Fantasy Score':'Franchise Score'}</option>
+<option value="name">Name</option><option value="age">Age</option>
+{mode==='fantasy'&&<option value="sleeper">Sleeper Rating</option>}
+<option value="breakout">Breakout</option><option value="bust">Bust Risk</option>
+{mode==='madden'&&<option value="schemeFit">Scheme Fit</option>}
+<option value="votes">Votes</option>
+</select>
+<span style={{fontSize:12,color:'var(--textDim)'}}>{filteredPlayers.length} players</span>
+</>}
+<div style={{marginLeft:'auto',display:'flex',gap:6}}>
+<span className="badge badge-blue" style={{fontSize:12}}>{mode==='fantasy'?'Fantasy':'Madden'}</span>
+{mode==='fantasy'&&<span className="badge badge-purple" style={{fontSize:12}}>{SCORING_FORMATS[format]?.label}</span>}
+{mode==='madden'&&<span className="badge badge-purple" style={{fontSize:12}}>{offScheme}</span>}
+{draftedCount>0&&<span className="badge badge-green" style={{fontSize:12}}>{draftedCount} Drafted</span>}
+</div>
+</div>
+
+<div style={{flex:1,overflow:'auto',padding:20}}>
+{view==='board'&&<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))',gap:12}}>
+{filteredPlayers.map(p=><PlayerCard key={p.id} player={p} mode={mode} format={format}
+offScheme={offScheme} defScheme={defScheme} gms={gms}
+onVote={handleVote} drafted={draftedIds.has(p.id)} onToggleDraft={toggleDraft}/>)}
+</div>}
+
+{view==='tiers'&&board&&<TierBoard tiers={board.tiers} setTiers={t=>updateBoard({tiers:t})}
+players={filteredPlayers} mode={mode} format={format} offScheme={offScheme} defScheme={defScheme}/>}
+
+{view==='myteam'&&<MyTeamView draftedIds={draftedIds} players={ALL_PLAYERS} mode={mode}
+format={format} offScheme={offScheme} defScheme={defScheme} onUndraft={toggleDraft}/>}
+
+{view==='dashboard'&&(mode==='fantasy'?
+<FantasyDashboard players={ALL_PLAYERS} format={format}/>:
+<FranchiseDashboard players={ALL_PLAYERS} offScheme={offScheme} defScheme={defScheme}/>)}
+
+{view==='recs'&&<Recommendations players={ALL_PLAYERS} mode={mode} format={format} offScheme={offScheme} defScheme={defScheme}/>}
+
+{view==='collab'&&<CollabDashboard players={ALL_PLAYERS} gms={gms}/>}
+
+{view==='boards'&&<BoardManager boards={boards} setBoards={setBoards} activeBoard={activeBoard}
+setActiveBoard={setActiveBoard} onSaveAll={saveAllBoards} onLoadAll={loadAllBoards}/>}
+</div>
+</div>
+</div>
+
+<Modal open={gmSetupOpen} onClose={()=>setGmSetupOpen(false)} title="GM Setup">
+<GMSetup gms={gms} setGms={g=>updateBoard({gms:g})}/>
+</Modal>
+
+<Modal open={!!pinModal} onClose={()=>setPinModal(null)} title="Enter PIN to Vote">
+<div style={{display:'flex',flexDirection:'column',gap:12,alignItems:'center'}}>
+<p style={{fontSize:13,color:'var(--textDim)'}}>Enter {pinModal?gms[pinModal.gmIdx]?.name+"'s":''} 4-digit PIN</p>
+<input type="password" maxLength={4} value={pinInput} onChange={e=>setPinInput(e.target.value.replace(/\D/g,'').slice(0,4))}
+style={{width:120,textAlign:'center',fontSize:24,letterSpacing:8}} autoFocus
+onKeyDown={e=>{if(e.key==='Enter')confirmVote();}}/>
+<button className="btn btn-primary" onClick={confirmVote}>Confirm Vote</button>
+</div>
+</Modal>
+</AppCtx.Provider>;
+}
+
+ReactDOM.render(<App/>,document.getElementById('root'));
+</script>
+</body>
+</html>
