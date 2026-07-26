@@ -19,7 +19,6 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{opacity:.85}
 .btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}.btn-secondary:hover{background:var(--border)}
 .btn-danger{background:var(--red);color:#fff}.btn-danger:hover{opacity:.85}
-.btn-success{background:var(--green);color:#fff}.btn-success:hover{opacity:.85}
 .btn-sm{padding:4px 10px;font-size:12px;border-radius:6px}
 .btn-xs{padding:2px 8px;font-size:11px;border-radius:4px}
 input,select,textarea{background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:13px;width:100%;outline:none}
@@ -39,18 +38,22 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
 .tier-zone.drag-over{border-color:var(--accent);background:rgba(59,130,246,.08)}
 .player-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:8px;font-size:12px;font-weight:500;cursor:grab;transition:all .15s;border:1px solid var(--border);background:var(--surface)}
 .player-chip:hover{border-color:var(--accent);transform:translateY(-1px)}
+.player-chip.dragging{opacity:.5;transform:scale(.95)}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:1000;backdrop-filter:blur(4px)}
-.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:640px;width:90%;max-height:85vh;overflow-y:auto}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:600px;width:90%;max-height:85vh;overflow-y:auto}
 .sidebar{width:280px;min-width:280px;background:var(--surface);border-right:1px solid var(--border);height:100vh;overflow-y:auto;transition:all .3s}
+.tooltip{position:relative}.tooltip:hover::after{content:attr(data-tip);position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:#0f172a;color:#f1f5f9;padding:4px 8px;border-radius:4px;font-size:11px;white-space:nowrap;z-index:99}
 @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 .fade-in{animation:fadeIn .3s ease}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.pulse{animation:pulse 2s infinite}
 ::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
 .grid-auto{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
-.drafted-overlay{position:relative}.drafted-overlay::after{content:'DRAFTED';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.55);color:#ef4444;font-size:18px;font-weight:900;border-radius:8px;letter-spacing:2px;pointer-events:none}
-.check-btn{width:22px;height:22px;border-radius:4px;border:2px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
-.check-btn.checked{background:var(--green);border-color:var(--green);color:#fff}
 .color-dot{width:22px;height:22px;border-radius:6px;cursor:pointer;border:3px solid transparent;flex-shrink:0;transition:all .1s}
 .color-dot.sel{border-color:var(--text)}
+.check-btn{width:22px;height:22px;border-radius:4px;border:2px solid var(--border);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.check-btn.checked{background:var(--green);border-color:var(--green);color:#fff}
+.drafted-overlay{position:relative;opacity:.55}
 </style>
 </head>
 <body>
@@ -58,16 +61,12 @@ input:focus,select:focus,textarea:focus{border-color:var(--accent)}
 <script type="text/babel">
 const {useState,useEffect,useCallback,useMemo,useRef,createContext,useContext}=React;
 
-// ═══════════════════════════════════════════════════
-// DETERMINISTIC HASH (replaces Math.random in scoring)
-// ═══════════════════════════════════════════════════
-function hashStr(s){let h=0;for(let i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0;}return Math.abs(h);}
-
-// ═══════════════════════════════════════════════════
-// DATA
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// DATA LAYER
+// ═══════════════════════════════════════════════════════════
 const POSITIONS=['QB','RB','WR','TE','K','DEF'];
 const NFL_TEAMS=['ARI','ATL','BAL','BUF','CAR','CHI','CIN','CLE','DAL','DEN','DET','GB','HOU','IND','JAX','KC','LAC','LAR','LV','MIA','MIN','NE','NO','NYG','NYJ','PHI','PIT','SEA','SF','TB','TEN','WAS'];
+const COLLEGES=['Alabama','Ohio State','Georgia','Michigan','LSU','Clemson','Oklahoma','Texas','USC','Oregon','Penn State','Notre Dame','Florida','Tennessee','Texas A&M','Miami','Florida State','Wisconsin','Iowa','Ole Miss','Auburn','UCLA','Washington','Colorado','North Carolina','Kentucky','Pittsburgh','Arkansas','Utah','Baylor','TCU','Kansas State','Missouri','South Carolina','NC State','Duke','Stanford','Illinois','Minnesota','Maryland','Virginia Tech','Wake Forest','Louisville','Boston College','Syracuse','West Virginia','Cincinnati','Memphis','Tulane','SMU','BYU','Boise State','Liberty','Coastal Carolina','James Madison','Jacksonville State'];
 
 function generatePlayers(){
 const veterans=[
@@ -102,7 +101,7 @@ const veterans=[
 {name:'Mark Andrews',team:'BAL',pos:'TE',age:29,exp:7,college:'Oklahoma',ovr:90,injury:0.35,fantPts:13.0,consistency:72,targetShare:20,rzUsage:11,oppShare:0,breakout:5,dynasty:65,speed:84,accel:87,agility:84,strength:80,awareness:92,throwPow:0,throwAcc:0,dev:'Star',contract:14,leadership:86},
 {name:'Brock Bowers',team:'LV',pos:'TE',age:23,exp:2,college:'Georgia',ovr:87,injury:0.08,fantPts:14.5,consistency:82,targetShare:22,rzUsage:10,oppShare:0,breakout:40,dynasty:97,speed:89,accel:91,agility:90,strength:78,awareness:84,throwPow:0,throwAcc:0,dev:'Superstar',contract:6,leadership:76},
 {name:'Derrick Henry',team:'BAL',pos:'RB',age:31,exp:9,college:'Alabama',ovr:91,injury:0.25,fantPts:17.5,consistency:80,targetShare:4,rzUsage:22,oppShare:72,breakout:2,dynasty:45,speed:90,accel:89,agility:80,strength:95,awareness:92,throwPow:0,throwAcc:0,dev:'Superstar',contract:10,leadership:92},
-{name:"De'Von Achane",team:'MIA',pos:'RB',age:23,exp:3,college:'Texas A&M',ovr:87,injury:0.25,fantPts:17.8,consistency:70,targetShare:10,rzUsage:12,oppShare:58,breakout:35,dynasty:90,speed:97,accel:97,agility:95,strength:65,awareness:82,throwPow:0,throwAcc:0,dev:'Superstar',contract:4,leadership:72},
+{name:'De\'Von Achane',team:'MIA',pos:'RB',age:23,exp:3,college:'Texas A&M',ovr:87,injury:0.25,fantPts:17.8,consistency:70,targetShare:10,rzUsage:12,oppShare:58,breakout:35,dynasty:90,speed:97,accel:97,agility:95,strength:65,awareness:82,throwPow:0,throwAcc:0,dev:'Superstar',contract:4,leadership:72},
 {name:'Puka Nacua',team:'LAR',pos:'WR',age:24,exp:3,college:'BYU',ovr:89,injury:0.15,fantPts:17.0,consistency:82,targetShare:28,rzUsage:10,oppShare:0,breakout:30,dynasty:94,speed:90,accel:92,agility:90,strength:78,awareness:88,throwPow:0,throwAcc:0,dev:'Superstar',contract:4,leadership:80},
 {name:'Justin Jefferson',team:'MIN',pos:'WR',age:26,exp:5,college:'LSU',ovr:98,injury:0.12,fantPts:20.0,consistency:91,targetShare:29,rzUsage:12,oppShare:0,breakout:5,dynasty:97,speed:94,accel:95,agility:96,strength:74,awareness:97,throwPow:0,throwAcc:0,dev:'Superstar X-Factor',contract:35,leadership:90},
 {name:'AJ Brown',team:'PHI',pos:'WR',age:27,exp:5,college:'Ole Miss',ovr:94,injury:0.18,fantPts:18.5,consistency:85,targetShare:26,rzUsage:13,oppShare:0,breakout:5,dynasty:88,speed:93,accel:94,agility:90,strength:84,awareness:93,throwPow:0,throwAcc:0,dev:'Superstar',contract:32,leadership:88},
@@ -152,34 +151,61 @@ const collegePlayers=[
 {name:'TreVeyon Henderson',pos:'RB',age:22,college:'Ohio State',ovr:0,injury:0.2,fantPts:0,consistency:0,targetShare:0,rzUsage:0,oppShare:0,breakout:40,dynasty:78,speed:94,accel:95,agility:90,strength:78,awareness:76,throwPow:0,throwAcc:0,dev:'Star',contract:0,leadership:72,prospect:true,projDraftPos:'Round 2',nflProjection:78,athleticScore:92,prodScore:76}
 ];
 
-return [...veterans.map((p,i)=>({...p,id:'v'+i,type:'veteran'})),...rookies.map((p,i)=>({...p,id:'r'+i,type:'rookie'})),...collegePlayers.map((p,i)=>({...p,id:'c'+i,type:'prospect',team:''}))];
-}
+return [...veterans.map((p,i)=>({...p,id:'v'+i,type:'veteran'})),...rookies.map((p,i)=>({...p,id:'r'+i,type:'rookie'})),...collegePlayers.map((p,i)=>({...p,id:'c'+i,type:'prospect',team:''}))];}
 
 const ALL_PLAYERS=generatePlayers();
-const NFL_PLAYERS=ALL_PLAYERS.filter(p=>p.type!=='prospect'); // Veterans + Rookies only
+const NFL_PLAYERS=ALL_PLAYERS.filter(p=>p.type!=='prospect');
 
-// ═══════════════════════════════════════════════════
-// SCORING ENGINES (NO Math.random — fully deterministic)
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// SCORING ENGINES
+// ═══════════════════════════════════════════════════════════
 const SCORING_FORMATS={standard:{label:'Standard',ppr:0},halfPpr:{label:'Half PPR',ppr:0.5},fullPpr:{label:'Full PPR',ppr:1},superflex:{label:'Superflex',ppr:1,sflex:true},dynasty:{label:'Dynasty',ppr:1,dynasty:true},keeper:{label:'Keeper',ppr:0.5,keeper:true},bestBall:{label:'Best Ball',ppr:1,bestBall:true},custom:{label:'Custom',ppr:0.5}};
+
 const OFF_SCHEMES=['West Coast','Spread','Air Raid','Vertical','Run Heavy','Power Run','Zone Run','Balanced'];
 const DEF_SCHEMES=['4-3 Base','3-4 Base','Nickel Heavy','Dime Heavy','Cover 2','Cover 3','Cover 4','Man Coverage','Zone Coverage','Hybrid'];
 
 function calcFantasyScore(p,format='halfPpr'){
 const f=SCORING_FORMATS[format]||SCORING_FORMATS.halfPpr;
-const isDynasty=f.dynasty||false;const isSflex=f.sflex||false;
+const isDynasty=f.dynasty||false;
+const isSflex=f.sflex||false;
 let score=0;
 const ageFactor=p.pos==='QB'?Math.max(0,(38-p.age)/18):p.pos==='RB'?Math.max(0,(32-p.age)/14):p.pos==='WR'?Math.max(0,(35-p.age)/17):Math.max(0,(36-p.age)/18);
-score+=p.fantPts*2.2;score+=p.consistency*0.15;score+=(1-p.injury)*8;
+score+=p.fantPts*2.2;
+score+=p.consistency*0.15;
+score+=(1-p.injury)*8;
 const posScarcity=p.pos==='TE'?8:p.pos==='QB'?(isSflex?12:4):p.pos==='RB'?6:5;
-score+=posScarcity;score+=p.targetShare*0.15;score+=p.rzUsage*0.2;score+=p.oppShare*0.08;score+=p.breakout*0.12;
+score+=posScarcity;
+score+=p.targetShare*0.15;
+score+=p.rzUsage*0.2;
+score+=p.oppShare*0.08;
+score+=p.breakout*0.12;
 if(isDynasty)score+=ageFactor*12+p.dynasty*0.08;
 if(p.rookie)score+=p.breakout*0.15;
-return Math.round(Math.min(99,Math.max(1,score)));
+score=Math.min(99,Math.max(1,score));
+return Math.round(score);
 }
 
+function calcFranchiseScore(p,offScheme='Balanced',defScheme='4-3 Base'){
+let score=0;
+score+=p.ovr*0.35;
+const ageFactor=Math.max(0,(34-p.age)/16);
+score+=ageFactor*15;
+const devScore=p.dev==='Superstar X-Factor'?15:p.dev==='Superstar'?12:p.dev==='Star'?8:4;
+score+=devScore;
+const athScore=(p.speed+p.accel+p.agility+p.strength)/4;
+score+=athScore*0.12;
+score+=(1-p.injury)*6;
+score+=(100-p.contract)*0.06;
+score+=p.leadership*0.06;
+const schemeFit=calcSchemeFit(p,offScheme,defScheme);
+score+=schemeFit*0.08;
+score=Math.min(99,Math.max(1,score));
+return Math.round(score);
+}
+
+function hashStr(s){let h=0;for(let i=0;i<s.length;i++){h=((h<<5)-h)+s.charCodeAt(i);h|=0;}return Math.abs(h);}
+
 function calcSchemeFit(p,offScheme,defScheme){
-// DETERMINISTIC — uses player name hash instead of Math.random
 if(p.pos==='DEF'){const h=hashStr(p.name+offScheme+defScheme);return 75+(h%21);}
 let fit=70;
 if(p.pos==='QB'){
@@ -201,49 +227,36 @@ if(offScheme==='Run Heavy'||offScheme==='Power Run')fit+=p.strength>80?10:3;
 return Math.min(99,Math.max(40,fit));
 }
 
-function calcFranchiseScore(p,offScheme='Balanced',defScheme='4-3 Base'){
-let score=0;score+=p.ovr*0.35;
-const ageFactor=Math.max(0,(34-p.age)/16);score+=ageFactor*15;
-const devScore=p.dev==='Superstar X-Factor'?15:p.dev==='Superstar'?12:p.dev==='Star'?8:4;
-score+=devScore;
-const athScore=(p.speed+p.accel+p.agility+p.strength)/4;score+=athScore*0.12;
-score+=(1-p.injury)*6;score+=(100-p.contract)*0.06;score+=p.leadership*0.06;
-score+=calcSchemeFit(p,offScheme,defScheme)*0.08;
-return Math.round(Math.min(99,Math.max(1,score)));
-}
+function getSleeperRating(p){return Math.min(99,Math.max(1,Math.round(p.breakout*0.6+(100-calcFantasyScore(p))*0.2+(p.rookie?15:0)+(p.prospect?20:0))))}
+function getBustRisk(p){return Math.min(99,Math.max(1,Math.round(p.injury*60+(100-p.consistency)*0.3+(p.age>30?15:0)+(p.rookie?10:0))))}
+function getBreakoutScore(p){return Math.min(99,Math.max(1,Math.round(p.breakout*0.7+(p.age<25?15:0)+(p.rookie?10:0)+(p.prospect?15:0))))}
 
-function getSleeperRating(p){return Math.min(99,Math.max(1,Math.round(p.breakout*0.6+(100-calcFantasyScore(p))*0.2+(p.rookie?15:0)+(p.prospect?20:0))));}
-function getBustRisk(p){return Math.min(99,Math.max(1,Math.round(p.injury*60+(100-p.consistency)*0.3+(p.age>30?15:0)+(p.rookie?10:0))));}
-function getBreakoutScore(p){return Math.min(99,Math.max(1,Math.round(p.breakout*0.7+(p.age<25?15:0)+(p.rookie?10:0)+(p.prospect?15:0))));}
+function scoreColor(v){return v>=75?'var(--green)':v>=50?'var(--yellow)':'var(--red)'}
+function scoreBadge(v){return v>=75?'badge-green':v>=50?'badge-yellow':'badge-red'}
 
-function scoreColor(v){return v>=75?'var(--green)':v>=50?'var(--yellow)':'var(--red)';}
-function scoreBadge(v){return v>=75?'badge-green':v>=50?'badge-yellow':'badge-red';}
-
-const TIER_COLORS=['#22c55e','#3b82f6','#eab308','#f97316','#ef4444','#8b5cf6','#ec4899','#06b6d4','#64748b','#f43f5e'];
-
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // CONTEXT
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 const AppCtx=createContext();
 
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // COMPONENTS
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+
 function ScoreBar({value,max=100,color}){
 return <div className="score-bar"><div className="score-fill" style={{width:`${(value/max)*100}%`,background:color||scoreColor(value)}}/></div>;
 }
 
-function Modal({open,onClose,title,children,wide}){
+function Modal({open,onClose,title,children}){
 if(!open)return null;
-return <div className="modal-overlay" onClick={onClose}><div className="modal fade-in" onClick={e=>e.stopPropagation()} style={wide?{maxWidth:800}:{}}>
+return <div className="modal-overlay" onClick={onClose}><div className="modal fade-in" onClick={e=>e.stopPropagation()}>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
 <h3 style={{fontSize:18,fontWeight:700}}>{title}</h3>
 <button className="btn btn-secondary btn-sm" onClick={onClose}>✕</button>
 </div>{children}</div></div>;
 }
 
-// ── Player Card with Draft Checkbox ──
-function PlayerCard({player,mode,format,offScheme,defScheme,gms,onVote,drafted,onToggleDraft}){
+function PlayerCard({player,mode,format,offScheme,defScheme,gms,onVote,onNote,onTierDrag,drafted,onToggleDraft}){
 const fs=calcFantasyScore(player,format);
 const fr=calcFranchiseScore(player,offScheme,defScheme);
 const sf=calcSchemeFit(player,offScheme,defScheme);
@@ -253,20 +266,19 @@ const bk=getBreakoutScore(player);
 const score=mode==='fantasy'?fs:fr;
 const [expanded,setExpanded]=useState(false);
 const [noteOpen,setNoteOpen]=useState(false);
+
 const gm1Votes=(gms[0]?.votes||{})[player.id]||0;
 const gm2Votes=(gms[1]?.votes||{})[player.id]||0;
 
-return <div className={`card-sm fade-in ${drafted?'drafted-overlay':''}`} style={{cursor:'grab',position:'relative'}}
+return <div className={'card-sm fade-in'+(drafted?' drafted-overlay':'')} style={{cursor:'grab'}}
 draggable onDragStart={e=>{e.dataTransfer.setData('text/plain',player.id);e.dataTransfer.effectAllowed='move';}}>
 <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',gap:8}}>
-<div style={{display:'flex',gap:8,alignItems:'flex-start',flex:1,minWidth:0}}>
-{/* Draft Checkbox */}
-<button className={`check-btn ${drafted?'checked':''}`} onClick={e=>{e.stopPropagation();onToggleDraft(player.id);}} title={drafted?'Undraft':'Mark as drafted'}>
-{drafted&&<span style={{fontSize:12}}>✓</span>}
-</button>
 <div style={{flex:1,minWidth:0}}>
 <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
-<span style={{fontWeight:700,fontSize:14}}>{player.name}</span>
+{onToggleDraft&&<button className={'check-btn'+(drafted?' checked':'')} title={drafted?'Mark undrafted':'Mark drafted'}
+onClick={e=>{e.stopPropagation();onToggleDraft(player.id);}}>{drafted?'✓':''}</button>}
+<span style={{fontWeight:700,fontSize:14,textDecoration:drafted?'line-through':'none'}}>{player.name}</span>
+{drafted&&<span className="badge badge-green">DRAFTED</span>}
 <span className="badge badge-blue">{player.pos}</span>
 {player.team&&<span style={{fontSize:12,color:'var(--textDim)'}}>{player.team}</span>}
 {player.rookie&&<span className="badge badge-purple">ROOKIE</span>}
@@ -274,7 +286,6 @@ draggable onDragStart={e=>{e.dataTransfer.setData('text/plain',player.id);e.data
 </div>
 <div style={{fontSize:12,color:'var(--textDim)',marginTop:4}}>
 {player.college}{player.age?' · Age '+player.age:''}{player.exp?' · '+player.exp+'yr':''}
-</div>
 </div>
 </div>
 <div style={{textAlign:'center',minWidth:48}}>
@@ -296,16 +307,17 @@ draggable onDragStart={e=>{e.dataTransfer.setData('text/plain',player.id);e.data
 </>}
 </div>
 
+{/* Vote buttons */}
 <div style={{display:'flex',gap:8,marginTop:8,alignItems:'center',flexWrap:'wrap'}}>
 {gms.map((gm,gi)=>gm.name?<div key={gi} style={{display:'flex',alignItems:'center',gap:4}}>
-<button className="btn-xs btn" style={{background:gm.color,color:'#fff',opacity:.9}} onClick={e=>{e.stopPropagation();onVote(gi,player.id,1);}}>+</button>
+<button className="btn-xs btn" style={{background:gm.color,color:'#fff',opacity:.9}} onClick={()=>onVote(gi,player.id,1)}>+</button>
 <span style={{fontSize:12,fontWeight:600,color:gm.color}}>{gi===0?gm1Votes:gm2Votes}</span>
-<button className="btn-xs btn" style={{background:'var(--surface2)',color:'var(--text)'}} onClick={e=>{e.stopPropagation();onVote(gi,player.id,-1);}}>−</button>
+<button className="btn-xs btn" style={{background:'var(--surface2)',color:'var(--text)'}} onClick={()=>onVote(gi,player.id,-1)}>−</button>
 <span style={{fontSize:10,color:'var(--textDim)'}}>{gm.name}</span>
 </div>:null)}
 <div style={{marginLeft:'auto',display:'flex',gap:4}}>
-<button className="btn btn-secondary btn-xs" onClick={e=>{e.stopPropagation();setNoteOpen(true);}}>📝</button>
-<button className="btn btn-secondary btn-xs" onClick={e=>{e.stopPropagation();setExpanded(!expanded);}}>{expanded?'▲':'▼'}</button>
+<button className="btn btn-secondary btn-xs" onClick={()=>setNoteOpen(true)}>📝</button>
+<button className="btn btn-secondary btn-xs" onClick={()=>setExpanded(!expanded)}>{expanded?'▲':'▼'}</button>
 </div>
 </div>
 
@@ -335,7 +347,7 @@ draggable onDragStart={e=>{e.dataTransfer.setData('text/plain',player.id);e.data
 </div>
 </div>}
 
-<Modal open={noteOpen} onClose={()=>setNoteOpen(false)} title={'Notes — '+player.name}>
+<Modal open={noteOpen} onClose={()=>setNoteOpen(false)} title={`Notes — ${player.name}`}>
 <NoteEditor playerId={player.id} onClose={()=>setNoteOpen(false)}/>
 </Modal>
 </div>;
@@ -348,15 +360,15 @@ const update=(k,v)=>setNotes(prev=>({...prev,[playerId]:{...current,[k]:v}}));
 return <div style={{display:'flex',flexDirection:'column',gap:12}}>
 {[['text','Scouting Notes'],['strengths','Strengths'],['weaknesses','Weaknesses'],['concerns','Concerns'],['strategy','Draft Strategy']].map(([k,label])=>
 <div key={k}><label style={{fontSize:12,fontWeight:600,color:'var(--textDim)',marginBottom:4,display:'block'}}>{label}</label>
-<textarea rows={3} value={current[k]} onChange={e=>update(k,e.target.value)} placeholder={'Enter '+label.toLowerCase()+'...'}/></div>
+<textarea rows={3} value={current[k]} onChange={e=>update(k,e.target.value)} placeholder={`Enter ${label.toLowerCase()}...`}/></div>
 )}
 <button className="btn btn-primary" onClick={onClose}>Save & Close</button>
 </div>;
 }
 
-// ═══════════════════════════════════════════════════
-// TIER BOARD (fixed — no prompt(), no random)
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// TIER BOARD
+// ═══════════════════════════════════════════════════════════
 const DEFAULT_TIERS=[
 {id:'t1',name:'Tier 1 — Elite',color:'#22c55e',players:[]},
 {id:'t2',name:'Tier 2 — Great',color:'#3b82f6',players:[]},
@@ -365,21 +377,22 @@ const DEFAULT_TIERS=[
 {id:'t5',name:'Tier 5 — Below',color:'#ef4444',players:[]},
 ];
 
-function TierBoard({tiers,setTiers,players,mode,format,offScheme,defScheme}){
+const TIER_COLORS=['#22c55e','#3b82f6','#eab308','#f97316','#ef4444','#8b5cf6','#06b6d4','#ec4899','#64748b','#14b8a6'];
+
+function TierBoard({tiers:tiersProp,setTiers,players,mode,format,offScheme,defScheme,gms,onVote}){
+const tiers=Array.isArray(tiersProp)?tiersProp:[];
+const [colorPicker,setColorPicker]=useState(null);
 const [dragOver,setDragOver]=useState(null);
 const [editTier,setEditTier]=useState(null);
-const [colorPicker,setColorPicker]=useState(null);
 const [newTierName,setNewTierName]=useState('');
 
-const handleDragOver=(tierId,e)=>{e.preventDefault();e.stopPropagation();setDragOver(tierId);};
-const handleDragLeave=(e)=>{e.stopPropagation();setDragOver(null);};
-
 const handleDrop=(tierId,e)=>{
-e.preventDefault();e.stopPropagation();
+e.preventDefault();
 const pid=e.dataTransfer.getData('text/plain');
-if(!pid){setDragOver(null);return;}
+if(!pid)return;
 setTiers(prev=>{
-const next=prev.map(t=>({...t,players:t.players.filter(id=>id!==pid)}));
+const base=Array.isArray(prev)?prev:[];
+const next=base.map(t=>({...t,players:(t.players||[]).filter(id=>id!==pid)}));
 const idx=next.findIndex(t=>t.id===tierId);
 if(idx>=0&&!next[idx].players.includes(pid))next[idx].players.push(pid);
 return next;
@@ -388,14 +401,15 @@ setDragOver(null);
 };
 
 const addTier=()=>{
-setTiers(prev=>[...prev,{id:'t'+Date.now(),name:newTierName||'New Tier',color:'#64748b',players:[]}]);
+setTiers(prev=>[...(Array.isArray(prev)?prev:[]),{id:'t'+Date.now(),name:newTierName||'New Tier',color:'#64748b',players:[]}]);
 setNewTierName('');
 };
-const removeTier=(id)=>setTiers(prev=>prev.filter(t=>t.id!==id));
-const renameTier=(id,name)=>setTiers(prev=>prev.map(t=>t.id===id?{...t,name}:t));
-const recolorTier=(id,color)=>setTiers(prev=>prev.map(t=>t.id===id?{...t,color}:t));
 
-const untiered=players.filter(p=>!tiers.some(t=>t.players.includes(p.id)));
+const removeTier=(id)=>setTiers(prev=>(Array.isArray(prev)?prev:[]).filter(t=>t.id!==id));
+const renameTier=(id,name)=>setTiers(prev=>(Array.isArray(prev)?prev:[]).map(t=>t.id===id?{...t,name}:t));
+const recolorTier=(id,color)=>setTiers(prev=>(Array.isArray(prev)?prev:[]).map(t=>t.id===id?{...t,color}:t));
+
+const untiered=players.filter(p=>!tiers.some(t=>(t.players||[]).includes(p.id)));
 
 return <div>
 <div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
@@ -404,8 +418,7 @@ return <div>
 </div>
 
 {tiers.map(tier=><div key={tier.id} style={{marginBottom:12}}>
-<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6,flexWrap:'wrap'}}>
-{/* Color picker inline — no prompt() */}
+<div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
 <div style={{position:'relative'}}>
 <div className="color-dot" style={{background:tier.color}} onClick={()=>setColorPicker(colorPicker===tier.id?null:tier.id)}/>
 {colorPicker===tier.id&&<div style={{position:'absolute',top:28,left:0,zIndex:50,background:'var(--surface)',border:'1px solid var(--border)',borderRadius:8,padding:6,display:'flex',gap:4,flexWrap:'wrap',width:140}}>
@@ -414,12 +427,12 @@ return <div>
 </div>
 {editTier===tier.id?<input style={{width:200}} value={tier.name} onChange={e=>renameTier(tier.id,e.target.value)} onBlur={()=>setEditTier(null)} autoFocus/>
 :<span style={{fontWeight:700,fontSize:14,cursor:'pointer'}} onClick={()=>setEditTier(tier.id)}>{tier.name}</span>}
-<span style={{fontSize:11,color:'var(--textDim)'}}>({tier.players.length})</span>
+<span style={{fontSize:11,color:'var(--textDim)'}}>({(tier.players||[]).length})</span>
 <button className="btn btn-secondary btn-xs" onClick={()=>removeTier(tier.id)}>✕</button>
 </div>
-<div className={'tier-zone'+(dragOver===tier.id?' drag-over':'')}
-onDragOver={e=>handleDragOver(tier.id,e)}
-onDragLeave={handleDragLeave}
+<div className={`tier-zone ${dragOver===tier.id?'drag-over':''}`}
+onDragOver={e=>{e.preventDefault();setDragOver(tier.id);}}
+onDragLeave={()=>setDragOver(null)}
 onDrop={e=>handleDrop(tier.id,e)}
 style={{borderColor:tier.color+'60'}}>
 <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
@@ -442,8 +455,8 @@ style={{borderLeftColor:tier.color,borderLeftWidth:3}}>
 
 <div style={{marginTop:16}}>
 <h4 style={{fontSize:14,fontWeight:700,marginBottom:8,color:'var(--textDim)'}}>Untiered Players ({untiered.length})</h4>
-<div style={{display:'flex',gap:6,flexWrap:'wrap',maxHeight:300,overflowY:'auto',padding:4}}>
-{untiered.map(pl=>{
+<div style={{display:'flex',gap:6,flexWrap:'wrap',maxHeight:200,overflowY:'auto'}}>
+{untiered.slice(0,60).map(pl=>{
 const sc=mode==='fantasy'?calcFantasyScore(pl,format):calcFranchiseScore(pl,offScheme,defScheme);
 return <div key={pl.id} className="player-chip" draggable
 onDragStart={e=>{e.dataTransfer.setData('text/plain',pl.id);e.dataTransfer.effectAllowed='move';}}>
@@ -457,34 +470,361 @@ onDragStart={e=>{e.dataTransfer.setData('text/plain',pl.id);e.dataTransfer.effec
 </div>;
 }
 
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
+// DASHBOARDS
+// ═══════════════════════════════════════════════════════════
+function FantasyDashboard({players,format}){
+const nfl=players.filter(p=>p.type!=='prospect');
+const scored=nfl.map(p=>({...p,fs:calcFantasyScore(p,format)})).sort((a,b)=>b.fs-a.fs);
+const topPlayers=scored.slice(0,10);
+const sleepers=nfl.map(p=>({...p,sl:getSleeperRating(p)})).sort((a,b)=>b.sl-a.sl).slice(0,8);
+const breakouts=nfl.map(p=>({...p,bk:getBreakoutScore(p)})).sort((a,b)=>b.bk-a.bk).slice(0,8);
+const posGroups={};
+POSITIONS.forEach(pos=>{const g=scored.filter(p=>p.pos===pos);posGroups[pos]=g.length;});
+
+return <div className="grid-auto">
+<div className="card">
+<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>🏆 Top Ranked</h4>
+{topPlayers.map((p,i)=><div key={p.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',borderBottom:'1px solid var(--border)'}}>
+<div><span style={{color:'var(--textDim)',marginRight:8,fontSize:12}}>#{i+1}</span><span style={{fontWeight:600,fontSize:13}}>{p.name}</span> <span style={{fontSize:11,color:'var(--textDim)'}}>{p.pos} · {p.team||p.college}</span></div>
+<span style={{fontWeight:700,color:scoreColor(p.fs)}}>{p.fs}</span>
+</div>)}
+</div>
+<div className="card">
+<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>😴 Sleeper Alerts</h4>
+{sleepers.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}>
+<span style={{fontWeight:600,fontSize:13}}>{p.name} <span style={{fontSize:11,color:'var(--textDim)'}}>{p.pos}</span></span>
+<span className={'badge '+scoreBadge(p.sl)}>Sleeper {p.sl}</span>
+</div>)}
+</div>
+<div className="card">
+<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>🚀 Breakout Candidates</h4>
+{breakouts.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}>
+<span style={{fontWeight:600,fontSize:13}}>{p.name} <span style={{fontSize:11,color:'var(--textDim)'}}>{p.pos}</span></span>
+<span className={'badge '+scoreBadge(p.bk)}>Breakout {p.bk}</span>
+</div>)}
+</div>
+<div className="card">
+<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>📊 Position Scarcity</h4>
+{POSITIONS.map(pos=>{const group=scored.filter(p=>p.pos===pos);const avg=group.length?Math.round(group.reduce((s,p)=>s+p.fs,0)/group.length):0;
+return <div key={pos} style={{marginBottom:8}}>
+<div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:4}}>
+<span style={{fontWeight:600}}>{pos}</span><span style={{color:'var(--textDim)'}}>{group.length} players · Avg {avg}</span>
+</div><ScoreBar value={avg}/></div>;
+})}
+</div>
+</div>;
+}
+
+function FranchiseDashboard({players,offScheme,defScheme}){
+const scored=players.map(p=>({...p,fr:calcFranchiseScore(p,offScheme,defScheme),sf:calcSchemeFit(p,offScheme,defScheme)})).sort((a,b)=>b.fr-a.fr);
+const topFits=scored.filter(p=>p.pos!=='DEF').sort((a,b)=>b.sf-a.sf).slice(0,8);
+const futureStars=scored.filter(p=>p.age<25).sort((a,b)=>b.fr-a.fr).slice(0,8);
+const tradeValues=scored.filter(p=>p.contract>0).sort((a,b)=>(b.fr/Math.max(1,b.contract))-(a.fr/Math.max(1,a.contract))).slice(0,8);
+
+return <div className="grid-auto">
+<div className="card">
+<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>🏈 Top Franchise Scores</h4>
+{scored.slice(0,10).map((p,i)=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}>
+<div><span style={{color:'var(--textDim)',marginRight:8,fontSize:12}}>#{i+1}</span><span style={{fontWeight:600,fontSize:13}}>{p.name}</span> <span style={{fontSize:11,color:'var(--textDim)'}}>{p.pos}</span></div>
+<span style={{fontWeight:700,color:scoreColor(p.fr)}}>{p.fr}</span>
+</div>)}
+</div>
+<div className="card">
+<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>🎯 Best Scheme Fits ({offScheme})</h4>
+{topFits.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}>
+<span style={{fontWeight:600,fontSize:13}}>{p.name} <span style={{fontSize:11,color:'var(--textDim)'}}>{p.pos}</span></span>
+<span className={'badge '+scoreBadge(p.sf)}>Fit {p.sf}</span>
+</div>)}
+</div>
+<div className="card">
+<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>⭐ Future Stars (Under 25)</h4>
+{futureStars.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}>
+<span style={{fontWeight:600,fontSize:13}}>{p.name} <span style={{fontSize:11,color:'var(--textDim)'}}>{p.pos} · Age {p.age}</span></span>
+<span style={{fontWeight:700,color:scoreColor(p.fr)}}>{p.fr}</span>
+</div>)}
+</div>
+<div className="card">
+<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>💰 Best Value Contracts</h4>
+{tradeValues.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}>
+<span style={{fontWeight:600,fontSize:13}}>{p.name} <span style={{fontSize:11,color:'var(--textDim)'}}>${p.contract}M</span></span>
+<span style={{fontWeight:700,color:scoreColor(p.fr)}}>{p.fr}</span>
+</div>)}
+</div>
+</div>;
+}
+
+function CollabDashboard({players,gms,format,mode,offScheme,defScheme}){
+const withVotes=players.map(p=>{
+const v1=(gms[0]?.votes||{})[p.id]||0;
+const v2=(gms[1]?.votes||{})[p.id]||0;
+return {...p,v1,v2,total:v1+v2,diff:Math.abs(v1-v2)};
+});
+const mostLoved=withVotes.filter(p=>p.total>0).sort((a,b)=>b.total-a.total).slice(0,8);
+const polarizing=withVotes.filter(p=>p.total>0&&p.diff>0).sort((a,b)=>b.diff-a.diff).slice(0,8);
+const gm1Favs=withVotes.filter(p=>p.v1>0).sort((a,b)=>b.v1-a.v1).slice(0,8);
+const gm2Favs=withVotes.filter(p=>p.v2>0).sort((a,b)=>b.v2-a.v2).slice(0,8);
+const noVotes=withVotes.filter(p=>p.total===0);
+const totalV1=Object.values(gms[0]?.votes||{}).reduce((s,v)=>s+v,0);
+const totalV2=Object.values(gms[1]?.votes||{}).reduce((s,v)=>s+v,0);
+const agreement=mostLoved.length?Math.round((mostLoved.filter(p=>p.v1>0&&p.v2>0).length/mostLoved.length)*100):0;
+
+return <div className="grid-auto">
+<div className="card">
+<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>❤️ Most Loved (Combined Votes)</h4>
+{mostLoved.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}>
+<span style={{fontWeight:600,fontSize:13}}>{p.name}</span>
+<div style={{display:'flex',gap:6}}>
+{gms[0]?.name&&<span style={{fontSize:11,color:gms[0].color}}>{p.v1}</span>}
+{gms[1]?.name&&<span style={{fontSize:11,color:gms[1].color}}>{p.v2}</span>}
+<span style={{fontWeight:700,fontSize:12}}>= {p.total}</span>
+</div></div>)}
+</div>
+<div className="card">
+<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>⚡ Most Polarizing</h4>
+{polarizing.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}>
+<span style={{fontWeight:600,fontSize:13}}>{p.name}</span>
+<span className="badge badge-red">Δ {p.diff}</span>
+</div>)}
+{polarizing.length===0&&<span style={{fontSize:12,color:'var(--textDim)'}}>No polarizing picks yet</span>}
+</div>
+<div className="card">
+<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>📊 Agreement Score</h4>
+<div style={{textAlign:'center',padding:16}}>
+<div style={{fontSize:48,fontWeight:800,color:scoreColor(agreement)}}>{agreement}%</div>
+<div style={{color:'var(--textDim)',fontSize:13}}>GM Consensus</div>
+<div style={{marginTop:12,display:'flex',justifyContent:'center',gap:24}}>
+{gms[0]?.name&&<div><div style={{fontSize:20,fontWeight:700,color:gms[0].color}}>{totalV1}/50</div><div style={{fontSize:11,color:'var(--textDim)'}}>{gms[0].name}</div></div>}
+{gms[1]?.name&&<div><div style={{fontSize:20,fontWeight:700,color:gms[1].color}}>{totalV2}/50</div><div style={{fontSize:11,color:'var(--textDim)'}}>{gms[1].name}</div></div>}
+</div>
+</div>
+</div>
+<div className="card">
+<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>🔇 No Votes ({noVotes.length})</h4>
+<div style={{maxHeight:200,overflowY:'auto'}}>
+{noVotes.slice(0,15).map(p=><div key={p.id} style={{padding:'4px 0',fontSize:12,color:'var(--textDim)'}}>
+{p.name} · {p.pos}
+</div>)}
+</div>
+</div>
+</div>;
+}
+
+function Recommendations({players,mode,format,offScheme,defScheme}){
+if(mode==='fantasy'){
+// ONLY current NFL players — never college prospects
+const nfl=players.filter(p=>p.type!=='prospect');
+const scored=nfl.map(p=>({...p,fs:calcFantasyScore(p,format),sl:getSleeperRating(p),bust:getBustRisk(p),bk:getBreakoutScore(p)}));
+const sleepers=[...scored].sort((a,b)=>b.sl-a.sl).slice(0,6);
+const leagueWinners=scored.filter(p=>p.bk>50&&p.fs>60).slice(0,6);
+const breakouts=[...scored].sort((a,b)=>b.bk-a.bk).slice(0,6);
+const busts=[...scored].sort((a,b)=>b.bust-a.bust).slice(0,6);
+const values=scored.filter(p=>p.fs>65).sort((a,b)=>a.fs-b.fs).slice(0,6);
+
+return <div className="grid-auto">
+{[['😴 Sleepers',sleepers,'sl','Sleeper'],['🏆 League Winners',leagueWinners,'bk','Breakout'],['🚀 Breakout',breakouts,'bk','Breakout'],['⚠️ Bust Risks',busts,'bust','Bust'],['💎 Value Picks',values,'fs','Score']].map(([title,list,key,label])=>
+<div className="card" key={title}>
+<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>{title}</h4>
+{list.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid var(--border)'}}>
+<span style={{fontSize:13}}><b>{p.name}</b> <span style={{color:'var(--textDim)'}}>{p.pos}</span></span>
+<span className={'badge '+scoreBadge(key==='bust'?100-p[key]:p[key])}>{label} {p[key]}</span>
+</div>)}
+</div>)}
+</div>;
+}else{
+const scored=players.map(p=>({...p,fr:calcFranchiseScore(p,offScheme,defScheme),sf:calcSchemeFit(p,offScheme,defScheme)}));
+const futureStars=scored.filter(p=>p.age<25).sort((a,b)=>b.fr-a.fr).slice(0,6);
+const schemeFits=scored.sort((a,b)=>b.sf-a.sf).slice(0,6);
+const bestContracts=scored.filter(p=>p.contract>0).sort((a,b)=>(b.fr/Math.max(1,b.contract))-(a.fr/Math.max(1,a.contract))).slice(0,6);
+const cornerstones=scored.sort((a,b)=>b.fr-a.fr).slice(0,6);
+const devTargets=scored.filter(p=>p.dev==='Superstar'||p.dev==='Superstar X-Factor').filter(p=>p.age<26).sort((a,b)=>b.fr-a.fr).slice(0,6);
+
+return <div className="grid-auto">
+{[['⭐ Future Stars',futureStars,'fr','Score'],['🎯 Scheme Fits',schemeFits,'sf','Fit'],['💰 Best Value',bestContracts,'fr','Score'],['🏛️ Cornerstones',cornerstones,'fr','Score'],['📈 Dev Targets',devTargets,'fr','Score']].map(([title,list,key,label])=>
+<div className="card" key={title}>
+<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>{title}</h4>
+{list.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid var(--border)'}}>
+<span style={{fontSize:13}}><b>{p.name}</b> <span style={{color:'var(--textDim)'}}>{p.pos}</span></span>
+<span className={'badge '+scoreBadge(p[key])}>{label} {p[key]}</span>
+</div>)}
+</div>)}
+</div>;
+}
+}
+
+// ═══════════════════════════════════════════════════════════
+// GM SETUP
+// ═══════════════════════════════════════════════════════════
+function GMSetup({gms,setGms}){
+const [pins,setPins]=useState(['','']);
+const colors=['#3b82f6','#ef4444','#22c55e','#eab308','#8b5cf6','#f97316','#ec4899','#06b6d4'];
+return <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+{[0,1].map(i=><div key={i} className="card">
+<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>GM {i+1}</h4>
+<div style={{display:'flex',flexDirection:'column',gap:8}}>
+<input placeholder="GM Name" value={gms[i]?.name||''} onChange={e=>{const g=[...gms];g[i]={...g[i],name:e.target.value};setGms(g);}}/>
+<input type="password" maxLength={4} placeholder="4-digit PIN" value={pins[i]} onChange={e=>{const v=e.target.value.replace(/\D/g,'').slice(0,4);const p=[...pins];p[i]=v;setPins(p);if(v.length===4){const g=[...gms];g[i]={...g[i],pin:v};setGms(g);}}}/>
+<div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+{colors.map(c=><div key={c} onClick={()=>{const g=[...gms];g[i]={...g[i],color:c};setGms(g);}}
+style={{width:28,height:28,borderRadius:6,background:c,cursor:'pointer',border:gms[i]?.color===c?'3px solid var(--text)':'3px solid transparent'}}/>)}
+</div>
+<div style={{fontSize:12,color:'var(--textDim)'}}>
+Votes used: {Object.values(gms[i]?.votes||{}).reduce((s,v)=>s+v,0)}/50
+</div>
+</div>
+</div>)}
+</div>;
+}
+
+// ═══════════════════════════════════════════════════════════
+// BOARD MANAGER
+// ═══════════════════════════════════════════════════════════
+function BoardManager({boards,setBoards,activeBoard,setActiveBoard,onSaveAll,onLoadAll}){
+const [newName,setNewName]=useState('');
+const [editingId,setEditingId]=useState(null);
+const [pwModal,setPwModal]=useState(null);
+const [pwInput,setPwInput]=useState('');
+const [pwErr,setPwErr]=useState('');
+const [newPw,setNewPw]=useState('');
+
+const tryOpenBoard=(b)=>{
+if(b.password){setPwModal({boardId:b.id,action:'open'});setPwInput('');setPwErr('');}
+else setActiveBoard(b.id);
+};
+const confirmPw=()=>{
+const b=boards.find(bb=>bb.id===pwModal.boardId);
+if(b&&pwInput===b.password){setActiveBoard(b.id);setPwModal(null);setPwInput('');setPwErr('');}
+else{setPwInput('');setPwErr('Incorrect password');}
+};
+const setPassword=(boardId)=>{
+setBoards(prev=>prev.map(b=>b.id===boardId?{...b,password:newPw}:b));
+setNewPw('');setPwModal(null);
+};
+
+const createBoard=()=>{
+const b={id:'b'+Date.now(),name:newName||'New Board',created:Date.now(),archived:false,password:'',
+tiers:DEFAULT_TIERS.map(t=>({...t,players:[]})),
+format:'halfPpr',offScheme:'Balanced',defScheme:'4-3 Base',
+gms:[{name:'',color:'#3b82f6',pin:'',votes:{}},{name:'',color:'#ef4444',pin:'',votes:{}}],
+notes:{},tags:{},filters:{},draftedIds:[],bbRounds:{},bbTags:{}};
+setBoards(prev=>[...prev,b]);
+setActiveBoard(b.id);
+setNewName('');
+};
+const duplicateBoard=(b)=>{
+const dup={...JSON.parse(JSON.stringify(b)),id:'b'+Date.now(),name:b.name+' (Copy)',created:Date.now()};
+setBoards(prev=>[...prev,dup]);
+};
+const archiveBoard=(id)=>setBoards(prev=>prev.map(b=>b.id===id?{...b,archived:!b.archived}:b));
+const deleteBoard=(id)=>{setBoards(prev=>prev.filter(b=>b.id!==id));if(activeBoard===id)setActiveBoard(null);};
+const exportBoard=(b)=>{
+const blob=new Blob([JSON.stringify(b,null,2)],{type:'application/json'});
+const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=b.name+'.json';a.click();
+};
+const importBoard=(e)=>{
+const file=e.target.files[0];if(!file)return;
+const r=new FileReader();r.onload=ev=>{try{const b=JSON.parse(ev.target.result);b.id='b'+Date.now();setBoards(prev=>[...prev,b]);}catch(err){alert('Invalid board file');}};r.readAsText(file);
+};
+
+const active=boards.filter(b=>!b.archived);
+const archived=boards.filter(b=>b.archived);
+
+return <div>
+<div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap'}}>
+<input style={{width:200}} value={newName} onChange={e=>setNewName(e.target.value)} placeholder="Board name..."/>
+<button className="btn btn-primary btn-sm" onClick={createBoard}>+ New Board</button>
+<label className="btn btn-secondary btn-sm" style={{cursor:'pointer'}}>
+📥 Import<input type="file" accept=".json" onChange={importBoard} style={{display:'none'}}/>
+</label>
+<button className="btn btn-success btn-sm" onClick={onSaveAll}>💾 Save All</button>
+<label className="btn btn-secondary btn-sm" style={{cursor:'pointer'}}>📂 Load Save<input type="file" accept=".json" onChange={onLoadAll} style={{display:'none'}}/></label>
+</div>
+<div style={{display:'flex',flexDirection:'column',gap:6}}>
+{active.map(b=><div key={b.id} className="card-sm" style={{display:'flex',justifyContent:'space-between',alignItems:'center',
+background:activeBoard===b.id?'var(--accent)':'var(--surface)',color:activeBoard===b.id?'#fff':'var(--text)',cursor:'pointer'}}
+onClick={()=>tryOpenBoard(b)}>
+<div style={{display:'flex',alignItems:'center',gap:8}}>
+{b.password&&<span style={{fontSize:14}}>🔒</span>}
+{editingId===b.id?<input value={b.name} onClick={e=>e.stopPropagation()} onChange={e=>setBoards(prev=>prev.map(bb=>bb.id===b.id?{...bb,name:e.target.value}:bb))} onBlur={()=>setEditingId(null)} autoFocus style={{width:150}}/>
+:<span style={{fontWeight:600,fontSize:13}}>{b.name}</span>}
+</div>
+<div style={{display:'flex',gap:4}} onClick={e=>e.stopPropagation()}>
+<button className="btn btn-xs btn-secondary" onClick={()=>setEditingId(b.id)}>✏️</button>
+<button className="btn btn-xs btn-secondary" title="Password protect" onClick={()=>{setPwModal({boardId:b.id,action:'setPw'});setNewPw(b.password||'');}}>🔐</button>
+<button className="btn btn-xs btn-secondary" onClick={()=>duplicateBoard(b)}>📋</button>
+<button className="btn btn-xs btn-secondary" onClick={()=>exportBoard(b)}>📤</button>
+<button className="btn btn-xs btn-secondary" onClick={()=>archiveBoard(b.id)}>📦</button>
+<button className="btn btn-xs btn-danger" onClick={()=>deleteBoard(b.id)}>🗑</button>
+</div>
+</div>)}
+</div>
+{archived.length>0&&<div style={{marginTop:16}}>
+<h5 style={{fontSize:12,fontWeight:600,color:'var(--textDim)',marginBottom:8}}>ARCHIVED</h5>
+{archived.map(b=><div key={b.id} className="card-sm" style={{display:'flex',justifyContent:'space-between',alignItems:'center',opacity:.6,marginBottom:4}}>
+<span style={{fontSize:13}}>{b.name}</span>
+<div style={{display:'flex',gap:4}}>
+<button className="btn btn-xs btn-secondary" onClick={()=>archiveBoard(b.id)}>Restore</button>
+<button className="btn btn-xs btn-danger" onClick={()=>deleteBoard(b.id)}>🗑</button>
+</div>
+</div>)}
+</div>}
+
+<Modal open={!!pwModal} onClose={()=>{setPwModal(null);setPwErr('');}} title={pwModal?.action==='open'?'Enter Board Password':'Set Board Password'}>
+{pwModal?.action==='open'?<div style={{display:'flex',flexDirection:'column',gap:12,alignItems:'center'}}>
+<p style={{fontSize:13,color:'var(--textDim)'}}>This board is password protected.</p>
+<input type="password" value={pwInput} onChange={e=>{setPwInput(e.target.value);setPwErr('');}} placeholder="Enter password..." style={{width:240,textAlign:'center'}} autoFocus
+onKeyDown={e=>{if(e.key==='Enter')confirmPw();}}/>
+{pwErr&&<span style={{fontSize:12,color:'var(--red)'}}>{pwErr}</span>}
+<button className="btn btn-primary" onClick={confirmPw}>Unlock</button>
+</div>:<div style={{display:'flex',flexDirection:'column',gap:12,alignItems:'center'}}>
+<p style={{fontSize:13,color:'var(--textDim)'}}>Set a password to protect this board. Leave blank to remove protection.</p>
+<input type="password" value={newPw} onChange={e=>setNewPw(e.target.value)} placeholder="New password (blank to remove)..." style={{width:280,textAlign:'center'}}/>
+<button className="btn btn-primary" onClick={()=>setPassword(pwModal.boardId)}>{newPw?'Set Password':'Remove Password'}</button>
+</div>}
+</Modal>
+</div>;
+}
+
+// ═══════════════════════════════════════════════════════════
 // MY TEAM VIEW
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 function MyTeamView({draftedIds,players,mode,format,offScheme,defScheme,onUndraft}){
 const drafted=players.filter(p=>draftedIds.has(p.id));
 const byPos={};drafted.forEach(p=>{if(!byPos[p.pos])byPos[p.pos]=[];byPos[p.pos].push(p);});
-const posOrder=['QB','RB','WR','TE','K','DEF'];
+const posOrder=['QB','RB','WR','TE','K','DEF','DST'];
+const posName={QB:'Quarterbacks',RB:'Running Backs',WR:'Wide Receivers',TE:'Tight Ends',K:'Kickers',DEF:'Defense/Special Teams',DST:'Defense/Special Teams'};
 
 if(drafted.length===0)return <div className="card" style={{textAlign:'center',padding:40}}>
 <div style={{fontSize:48,marginBottom:12}}>🏈</div>
 <h3 style={{fontSize:18,fontWeight:700,marginBottom:8}}>No Players Drafted Yet</h3>
-<p style={{color:'var(--textDim)',fontSize:14}}>Use the checkboxes on the Big Board to mark players as drafted. They will appear here as your roster.</p>
+<p style={{color:'var(--textDim)',fontSize:14}}>Use the checkbox on the Fantasy Roster tab, or the Draft button on the Big Board, to mark players as drafted. They will appear here as your roster.</p>
 </div>;
 
 return <div>
-<div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}}>
-<h3 style={{fontSize:18,fontWeight:700}}>My Team ({drafted.length} players)</h3>
-</div>
+<h3 style={{fontSize:18,fontWeight:700,marginBottom:16}}>My Team ({drafted.length} players)</h3>
 <div style={{display:'grid',gap:16}}>
 {posOrder.map(pos=>{
 const group=byPos[pos];
 if(!group||group.length===0)return null;
 return <div key={pos} className="card">
 <h4 style={{fontWeight:700,fontSize:14,marginBottom:12,display:'flex',alignItems:'center',gap:8}}>
-<span className="badge badge-blue">{pos}</span> {pos==='QB'?'Quarterbacks':pos==='RB'?'Running Backs':pos==='WR'?'Wide Receivers':pos==='TE'?'Tight Ends':pos==='K'?'Kickers':'Defense/Special Teams'} ({group.length})
+<span className="badge badge-blue">{pos}</span> {posName[pos]||pos} ({group.length})
 </h4>
 <div style={{display:'flex',flexDirection:'column',gap:8}}>
 {group.map(p=>{
+if(p.isBB){const ev=bbEval(p);
+return <div key={p.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 12px',background:'var(--surface2)',borderRadius:8,gap:12,flexWrap:'wrap'}}>
+<div style={{flex:1,minWidth:180}}>
+<div style={{fontWeight:700,fontSize:14}}>{p.name} <span className="badge badge-purple">Big Board</span></div>
+<div style={{fontSize:12,color:'var(--textDim)'}}>{p.team} · {p.pos}{p.posRank} · Top-200 #{p.rank}</div>
+</div>
+<div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+<span className="badge badge-blue">{p.expPPR} xPPR</span>
+<span className="badge badge-yellow">ADP {p.adp}</span>
+<span className={'badge '+scoreBadge(ev.value)}>Value {ev.value}</span>
+<button className="btn btn-danger btn-xs" onClick={()=>onUndraft(p.id)}>Remove</button>
+</div>
+</div>;}
 const sc=mode==='fantasy'?calcFantasyScore(p,format):calcFranchiseScore(p,offScheme,defScheme);
 const sf=calcSchemeFit(p,offScheme,defScheme);
 return <div key={p.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'8px 12px',background:'var(--surface2)',borderRadius:8,gap:12,flexWrap:'wrap'}}>
@@ -513,261 +853,198 @@ return <div key={p.id} style={{display:'flex',justifyContent:'space-between',ali
 </div>;
 }
 
-// ═══════════════════════════════════════════════════
-// DASHBOARDS
-// ═══════════════════════════════════════════════════
-function FantasyDashboard({players,format}){
-const nfl=players.filter(p=>p.type!=='prospect');
-const scored=nfl.map(p=>({...p,fs:calcFantasyScore(p,format)})).sort((a,b)=>b.fs-a.fs);
-const topPlayers=scored.slice(0,10);
-const sleepers=nfl.map(p=>({...p,sl:getSleeperRating(p)})).sort((a,b)=>b.sl-a.sl).slice(0,8);
-const breakouts=nfl.map(p=>({...p,bk:getBreakoutScore(p)})).sort((a,b)=>b.bk-a.bk).slice(0,8);
+// ═══════════════════════════════════════════════════════════
+// BIG BOARD — CBS Sports Top 200 PPR (ADP averages)
+// ═══════════════════════════════════════════════════════════
+const TOP200_RAW=[
+["Jahmyr Gibbs","RB","DET",1.5],["Bijan Robinson","RB","ATL",2.0],["Ja'Marr Chase","WR","CIN",2.75],["Puka Nacua","WR","LAR",4.25],["Jaxon Smith-Njigba","WR","SEA",5.0],
+["Amon-Ra St. Brown","WR","DET",6.25],["Christian McCaffrey","RB","SF",7.5],["Jonathan Taylor","RB","IND",8.25],["CeeDee Lamb","WR","DAL",9.5],["De'Von Achane","RB","MIA",11.5],
+["James Cook","RB","BUF",12.5],["Chase Brown","RB","CIN",12.75],["Drake London","WR","ATL",13.25],["Omarion Hampton","RB","LAC",14.25],["Justin Jefferson","WR","MIN",14.75],
+["Ashton Jeanty","RB","LV",17.25],["Rashee Rice","WR","KC",17.5],["Saquon Barkley","RB","PHI",18.25],["Trey McBride","TE","ARI",18.75],["Derrick Henry","RB","BAL",20.5],
+["George Pickens","WR","DAL",21.25],["Kenneth Walker III","RB","KC",22.75],["Josh Jacobs","RB","GB",23.25],["Josh Allen","QB","BUF",23.25],["Nico Collins","WR","HOU",23.5],
+["Brock Bowers","TE","LV",25.5],["Malik Nabers","WR","NYG",26.75],["A.J. Brown","WR","PHI",28.5],["Breece Hall","RB","NYJ",29.25],["Jeremiyah Love","RB","ARI",29.25],
+["Kyren Williams","RB","LAR",29.25],["Chris Olave","WR","NO",31.5],["Tetairoa McMillan","WR","CAR",36.0],["DeVonta Smith","WR","PHI",36.0],["Emeka Egbuka","WR","TB",36.25],
+["Tee Higgins","WR","CIN",36.5],["Cam Skattebo","RB","NYG",37.0],["Travis Etienne","RB","NO",38.25],["Javonte Williams","RB","DAL",39.25],["Zay Flowers","WR","BAL",40.0],
+["Garrett Wilson","WR","NYJ",40.0],["Drake Maye","QB","NE",43.25],["Quinshon Judkins","RB","CLE",44.25],["Colston Loveland","TE","CHI",44.5],["Lamar Jackson","QB","BAL",45.0],
+["Bucky Irving","RB","TB",45.75],["Ladd McConkey","WR","LAC",47.0],["Luther Burden III","WR","CHI",49.75],["D'Andre Swift","RB","CHI",51.0],["DJ Moore","WR","BUF",51.5],
+["Jaylen Waddle","WR","DEN",51.75],["Terry McLaurin","WR","WAS",52.25],["Tyler Warren","TE","IND",53.5],["Jameson Williams","WR","DET",57.25],["Marvin Harrison Jr.","WR","ARI",57.25],
+["David Montgomery","RB","HOU",59.25],["Joe Burrow","QB","CIN",60.5],["Alec Pierce","WR","IND",60.5],["Bhayshul Tuten","RB","JAC",61.25],["Rome Odunze","WR","CHI",62.25],
+["TreVeyon Henderson","RB","NE",62.5],["Mike Evans","WR","SF",62.75],["Jadarian Price","RB","SEA",63.0],["Michael Wilson","WR","ARI",64.5],["Davante Adams","WR","LAR",64.75],
+["Christian Watson","WR","GB",68.25],["Chuba Hubbard","RB","CAR",68.5],["Tony Pollard","RB","TEN",69.0],["Sam LaPorta","TE","DET",70.25],["Harold Fannin Jr.","TE","CLE",72.0],
+["Courtland Sutton","WR","DEN",72.0],["Jalen Hurts","QB","PHI",72.25],["Carnell Tate","WR","TEN",72.5],["Jayden Daniels","QB","WAS",72.5],["Kyle Pitts","TE","ATL",76.0],
+["Dak Prescott","QB","DAL",77.25],["Tucker Kraft","TE","GB",77.25],["Chris Godwin","WR","TB",77.75],["RJ Harvey","RB","DEN",78.25],["Wan'Dale Robinson","WR","TEN",79.0],
+["Jaylen Warren","RB","PIT",80.5],["Rhamondre Stevenson","RB","NE",81.75],["DK Metcalf","WR","PIT",83.5],["Rico Dowdle","RB","PIT",84.75],["J.K. Dobbins","RB","DEN",85.25],
+["Brian Thomas Jr.","WR","JAC",86.0],["Jordyn Tyson","WR","NO",86.0],["Jakobi Meyers","WR","JAC",87.25],["Ricky Pearsall","WR","SF",90.5],["Parker Washington","WR","JAC",92.0],
+["George Kittle","TE","SF",92.5],["Isaiah Likely","TE","NYG",93.0],["Jaxson Dart","QB","NYG",93.0],["Jacory Croskey-Merritt","RB","WAS",95.5],["Makai Lemon","WR","PHI",98.0],
+["Chris Rodriguez Jr.","RB","JAC",98.5],["Zach Charbonnet","RB","SEA",98.75],["Justin Herbert","QB","LAC",100.5],["Kyle Monangai","RB","CHI",100.75],["Caleb Williams","QB","CHI",101.25],
+["Blake Corum","RB","LAR",102.0],["Josh Downs","WR","IND",102.25],["Jordan Addison","WR","MIN",103.0],["Kenneth Gainwell","RB","TB",104.0],["Tyrone Tracy Jr.","RB","NYG",104.0],
+["Dallas Goedert","TE","PHI",104.75],["KC Concepcion","WR","CLE",105.25],["Travis Kelce","TE","KC",105.25],["Michael Pittman","WR","PIT",105.25],["Aaron Jones","RB","MIN",107.0],
+["Jonathon Brooks","RB","CAR",109.75],["Xavier Worthy","WR","KC",111.0],["Jordan Mason","RB","MIN",111.25],["Quentin Johnston","WR","LAC",112.25],["Jayden Reed","WR","GB",113.5],
+["Rachaad White","RB","WAS",114.75],["Brock Purdy","QB","SF",114.75],["Romeo Doubs","WR","NE",115.0],["Matthew Golden","WR","GB",117.75],["Mark Andrews","TE","BAL",118.5],
+["Khalil Shakir","WR","BUF",120.5],["Jalen Coker","WR","CAR",121.75],["Matthew Stafford","QB","LAR",122.5],["Trevor Lawrence","QB","JAC",128.75],["Jayden Higgins","WR","HOU",129.25],
+["Tre Tucker","WR","LV",129.7],["Tyler Allgeier","RB","ARI",130.5],["Oronde Gadsden II","TE","LAC",131.0],["Patrick Mahomes","QB","KC",133.0],["Woody Marks","RB","HOU",135.0],
+["Isiah Pacheco","RB","DET",135.25],["Jake Ferguson","TE","DAL",136.0],["Dalton Kincaid","TE","BUF",137.0],["Jared Goff","QB","DET",138.0],["Jalen Nailor","WR","MIN",139.0],
+["Stefon Diggs","WR","NE",140.0],["Tyjae Spears","RB","TEN",141.0],["Malik Willis","QB","GB",142.0],["Kyler Murray","QB","ARI",143.0],["Brian Robinson Jr.","RB","SF",144.0],
+["Dylan Sampson","RB","CLE",145.0],["Emanuel Wilson","RB","GB",146.0],["Kenyon Sadiq","TE","NYJ",147.0],["Brandon Aiyuk","WR","SF",148.0],["Mike Washington Jr.","RB","LV",149.0],
+["Brenton Strange","TE","JAC",150.0],["Tyler Shough","QB","NO",151.0],["Jalen McMillan","WR","TB",152.0],["James Conner","RB","ARI",153.0],["Kaytron Allen","RB","FA",154.0],
+["Bo Nix","QB","DEN",155.0],["Emmett Johnson","RB","KC",156.0],["Baker Mayfield","QB","TB",157.0],["Jordan James","RB","SF",158.0],["Chigoziem Okonkwo","TE","TEN",159.0],
+["Jauan Jennings","WR","SF",160.0],["Deebo Samuel","WR","WAS",161.0],["Antonio Williams","WR","WAS",162.0],["Germie Bernard","WR","PIT",163.0],["Demond Claiborne","RB","MIN",164.0],
+["Jordan Love","QB","GB",165.0],["Keon Coleman","WR","BUF",166.0],["Cooper Kupp","WR","SEA",167.0],["Kayshon Boutte","WR","NE",168.0],["Jonah Coleman","RB","FA",169.0],
+["Juwan Johnson","TE","NO",170.0],["Christian Kirk","WR","HOU",171.0],["Caleb Douglas","WR","MIA",172.0],["Malik Washington","WR","MIA",173.0],["Hunter Henry","TE","NE",174.0],
+["Jerry Jeudy","WR","CLE",175.0],["Braelon Allen","RB","NYJ",176.0],["Darnell Mooney","WR","ATL",177.0],["Kimani Vidal","RB","LAC",178.0],["Tank Dell","WR","HOU",179.0],
+["Dalton Schultz","TE","HOU",180.0],["Troy Franklin","WR","DEN",181.0],["Rashid Shaheed","WR","NO",182.0],["Tank Bigsby","RB","PHI",183.0],["Calvin Ridley","WR","TEN",184.0],
+["Gunnar Helm","TE","TEN",185.0],["Ray Davis","RB","BUF",186.0],["Jalen Tolbert","WR","DAL",187.0],["Tre Harris","WR","LAC",188.0],["Jack Bech","WR","LV",189.0],
+["T.J. Hockenson","TE","MIN",190.0],["Ollie Gordon II","RB","MIA",191.0],["Keenan Allen","WR","LAC",192.0],["Chris Bell","WR","MIA",193.0],["Brandon Aubrey","K","DAL",194.0],
+["Jake Bates","K","DET",195.0],["Cameron Dicker","K","LAC",196.0],["Ka'imi Fairbairn","K","HOU",197.0],["Chris Boswell","K","PIT",198.0],["Broncos D/ST","DST","DEN",199.0],
+["Texans D/ST","DST","HOU",200.0],["Eagles D/ST","DST","PHI",201.0],["Ravens D/ST","DST","BAL",202.0],["Vikings D/ST","DST","MIN",203.0],["Steelers D/ST","DST","PIT",204.0]
+];
 
-return <div className="grid-auto">
-<div className="card">
-<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>🏆 Top Ranked</h4>
-{topPlayers.map((p,i)=><div key={p.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'6px 0',borderBottom:'1px solid var(--border)'}}>
-<div><span style={{color:'var(--textDim)',marginRight:8,fontSize:12}}>#{i+1}</span><span style={{fontWeight:600,fontSize:13}}>{p.name}</span> <span style={{fontSize:11,color:'var(--textDim)'}}>{p.pos} · {p.team}</span></div>
-<span style={{fontWeight:700,color:scoreColor(p.fs)}}>{p.fs}</span>
-</div>)}
-</div>
-<div className="card">
-<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>😴 Sleeper Alerts</h4>
-{sleepers.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}>
-<span style={{fontWeight:600,fontSize:13}}>{p.name} <span style={{fontSize:11,color:'var(--textDim)'}}>{p.pos} · {p.team}</span></span>
-<span className={'badge '+scoreBadge(p.sl)}>Sleeper {p.sl}</span>
-</div>)}
-</div>
-<div className="card">
-<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>🚀 Breakout Candidates</h4>
-{breakouts.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}>
-<span style={{fontWeight:600,fontSize:13}}>{p.name} <span style={{fontSize:11,color:'var(--textDim)'}}>{p.pos} · {p.team}</span></span>
-<span className={'badge '+scoreBadge(p.bk)}>Breakout {p.bk}</span>
-</div>)}
-</div>
-<div className="card">
-<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>📊 Position Scarcity</h4>
-{POSITIONS.map(pos=>{const group=scored.filter(p=>p.pos===pos);const avg=group.length?Math.round(group.reduce((s,p)=>s+p.fs,0)/group.length):0;
-return <div key={pos} style={{marginBottom:8}}>
-<div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:4}}>
-<span style={{fontWeight:600}}>{pos}</span><span style={{color:'var(--textDim)'}}>{group.length} players · Avg {avg}</span>
-</div><ScoreBar value={avg}/></div>;
-})}
-</div>
-</div>;
+const BB_PLAYERS=(()=>{
+const posCount={};
+const arr=TOP200_RAW.map((t,i)=>{
+const pos=t[1];posCount[pos]=(posCount[pos]||0)+1;
+return {id:'bb'+(i+1),rank:i+1,name:t[0],pos,team:t[2],adp:t[3],posRank:posCount[pos],isBB:true,type:'bb'};
+});
+const base={QB:24,RB:22,WR:21,TE:16,K:9,DST:9};
+const decay={QB:0.05,RB:0.05,WR:0.045,TE:0.07,K:0.03,DST:0.03};
+arr.forEach(p=>{p.expPPR=Math.round((base[p.pos]||14)*Math.exp(-(decay[p.pos]||0.05)*(p.posRank-1))*10)/10;p.fantPts=p.expPPR;});
+arr.forEach(p=>{
+const next=arr.find(q=>q.pos===p.pos&&q.posRank===p.posRank+1);
+p.dropoff=next?Math.round((p.expPPR-next.expPPR)*10)/10:1.5;
+});
+return arr;
+})();
+
+const BB_TAGS=[
+{k:'gem',label:'💎 Gem',adj:-18},
+{k:'sleeper',label:'😴 Sleeper',adj:-12},
+{k:'injury',label:'🚑 Injury',adj:20},
+{k:'age',label:'⏳ Age',adj:10}
+];
+const BB_POS_COLORS={QB:'#ef4444',RB:'#3b82f6',WR:'#22c55e',TE:'#f97316',K:'#8b5cf6',DST:'#64748b'};
+const BB_POSITIONS=['QB','RB','WR','TE','K','DST'];
+
+// Value engine: expected PPR + positional dropoff + breakout + positional value + tags
+function bbEval(p,tagList){
+const tags=tagList||[];
+let tagAdj=0;tags.forEach(k=>{const t=BB_TAGS.find(x=>x.k===k);if(t)tagAdj+=t.adj;});
+const breakout=(p.rank>50&&p.rank<160&&(p.pos==='RB'||p.pos==='WR'||p.pos==='TE')&&p.dropoff>=1)?-8:0;
+const adjRank=Math.max(1,p.rank-(p.dropoff*4)+tagAdj+breakout);
+const posBonus=p.pos==='RB'?4:p.pos==='WR'?3:p.pos==='TE'?(p.posRank<=3?6:0):p.pos==='QB'?(p.posRank<=2?2:-6):-25;
+const value=Math.max(0,Math.min(100,Math.round(100-adjRank*0.45+posBonus)));
+const recRound=Math.max(1,Math.min(12,Math.ceil(adjRank/17)));
+const adpRound=Math.max(1,Math.min(12,Math.ceil(p.adp/12)));
+let verdict,vClass;
+if(recRound<adpRound){verdict='VALUE · worth Rd '+recRound+', market Rd '+adpRound;vClass='badge-green';}
+else if(recRound>adpRound){verdict='CAUTION · board Rd '+recRound+', market Rd '+adpRound;vClass='badge-red';}
+else{verdict='FAIR · Rd '+recRound+' matches market';vClass='badge-blue';}
+return {value,recRound,adpRound,verdict,vClass,breakout:breakout<0};
 }
 
-function FranchiseDashboard({players,offScheme,defScheme}){
-const scored=players.map(p=>({...p,fr:calcFranchiseScore(p,offScheme,defScheme),sf:calcSchemeFit(p,offScheme,defScheme)})).sort((a,b)=>b.fr-a.fr);
-const topFits=scored.filter(p=>p.pos!=='DEF').sort((a,b)=>b.sf-a.sf).slice(0,8);
-const futureStars=scored.filter(p=>p.age<25).sort((a,b)=>b.fr-a.fr).slice(0,8);
-const tradeValues=scored.filter(p=>p.contract>0).sort((a,b)=>(b.fr/Math.max(1,b.contract))-(a.fr/Math.max(1,a.contract))).slice(0,8);
-return <div className="grid-auto">
-<div className="card"><h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>🏈 Top Franchise Scores</h4>
-{scored.slice(0,10).map((p,i)=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}><div><span style={{color:'var(--textDim)',marginRight:8,fontSize:12}}>#{i+1}</span><span style={{fontWeight:600,fontSize:13}}>{p.name}</span> <span style={{fontSize:11,color:'var(--textDim)'}}>{p.pos}</span></div><span style={{fontWeight:700,color:scoreColor(p.fr)}}>{p.fr}</span></div>)}</div>
-<div className="card"><h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>🎯 Best Scheme Fits ({offScheme})</h4>
-{topFits.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}><span style={{fontWeight:600,fontSize:13}}>{p.name} <span style={{fontSize:11,color:'var(--textDim)'}}>{p.pos}</span></span><span className={'badge '+scoreBadge(p.sf)}>Fit {p.sf}</span></div>)}</div>
-<div className="card"><h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>⭐ Future Stars (Under 25)</h4>
-{futureStars.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}><span style={{fontWeight:600,fontSize:13}}>{p.name} <span style={{fontSize:11,color:'var(--textDim)'}}>{p.pos} · Age {p.age}</span></span><span style={{fontWeight:700,color:scoreColor(p.fr)}}>{p.fr}</span></div>)}</div>
-<div className="card"><h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>💰 Best Value Contracts</h4>
-{tradeValues.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}><span style={{fontWeight:600,fontSize:13}}>{p.name} <span style={{fontSize:11,color:'var(--textDim)'}}>${p.contract}M</span></span><span style={{fontWeight:700,color:scoreColor(p.fr)}}>{p.fr}</span></div>)}</div>
-</div>;
-}
+// ═══════════════════════════════════════════════════════════
+// BIG BOARD VIEW — NFL front-office round board
+// ═══════════════════════════════════════════════════════════
+function BigBoard({board,updateBoard,gms,onVote,draftedIds,onToggleDraft}){
+const rounds=board?.bbRounds||{};
+const tags=board?.bbTags||{};
+const [q,setQ]=useState('');
+const [pf,setPf]=useState('ALL');
+const [dragOver,setDragOver]=useState(null);
+const [hideDrafted,setHideDrafted]=useState(false);
 
-function CollabDashboard({players,gms}){
-const withVotes=players.map(p=>{const v1=(gms[0]?.votes||{})[p.id]||0;const v2=(gms[1]?.votes||{})[p.id]||0;return{...p,v1,v2,total:v1+v2,diff:Math.abs(v1-v2)};});
-const mostLoved=withVotes.filter(p=>p.total>0).sort((a,b)=>b.total-a.total).slice(0,8);
-const polarizing=withVotes.filter(p=>p.total>0&&p.diff>0).sort((a,b)=>b.diff-a.diff).slice(0,8);
-const noVotes=withVotes.filter(p=>p.total===0);
-const totalV1=Object.values(gms[0]?.votes||{}).reduce((s,v)=>s+v,0);
-const totalV2=Object.values(gms[1]?.votes||{}).reduce((s,v)=>s+v,0);
-const agreement=mostLoved.length?Math.round((mostLoved.filter(p=>p.v1>0&&p.v2>0).length/mostLoved.length)*100):0;
-return <div className="grid-auto">
-<div className="card"><h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>❤️ Most Loved (Combined Votes)</h4>
-{mostLoved.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}><span style={{fontWeight:600,fontSize:13}}>{p.name}</span><div style={{display:'flex',gap:6}}>{gms[0]?.name&&<span style={{fontSize:11,color:gms[0].color}}>{p.v1}</span>}{gms[1]?.name&&<span style={{fontSize:11,color:gms[1].color}}>{p.v2}</span>}<span style={{fontWeight:700,fontSize:12}}>= {p.total}</span></div></div>)}
-{mostLoved.length===0&&<span style={{fontSize:12,color:'var(--textDim)'}}>No votes cast yet</span>}</div>
-<div className="card"><h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>⚡ Most Polarizing</h4>
-{polarizing.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'6px 0',borderBottom:'1px solid var(--border)'}}><span style={{fontWeight:600,fontSize:13}}>{p.name}</span><span className="badge badge-red">Δ {p.diff}</span></div>)}
-{polarizing.length===0&&<span style={{fontSize:12,color:'var(--textDim)'}}>No polarizing picks yet</span>}</div>
-<div className="card"><h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>📊 Agreement Score</h4>
-<div style={{textAlign:'center',padding:16}}><div style={{fontSize:48,fontWeight:800,color:scoreColor(agreement)}}>{agreement}%</div><div style={{color:'var(--textDim)',fontSize:13}}>GM Consensus</div>
-<div style={{marginTop:12,display:'flex',justifyContent:'center',gap:24}}>
-{gms[0]?.name&&<div><div style={{fontSize:20,fontWeight:700,color:gms[0].color}}>{totalV1}/50</div><div style={{fontSize:11,color:'var(--textDim)'}}>{gms[0].name}</div></div>}
-{gms[1]?.name&&<div><div style={{fontSize:20,fontWeight:700,color:gms[1].color}}>{totalV2}/50</div><div style={{fontSize:11,color:'var(--textDim)'}}>{gms[1].name}</div></div>}
-</div></div></div>
-<div className="card"><h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>🔇 No Votes ({noVotes.length})</h4>
-<div style={{maxHeight:200,overflowY:'auto'}}>{noVotes.slice(0,15).map(p=><div key={p.id} style={{padding:'4px 0',fontSize:12,color:'var(--textDim)'}}>{p.name} · {p.pos}</div>)}</div></div>
-</div>;
-}
+const setRound=(pid,r)=>{const next={...rounds};if(r)next[pid]=r;else delete next[pid];updateBoard({bbRounds:next});};
+const toggleTag=(pid,k)=>{const cur=tags[pid]||[];const nv=cur.includes(k)?cur.filter(x=>x!==k):[...cur,k];const next={...tags};if(nv.length)next[pid]=nv;else delete next[pid];updateBoard({bbTags:next});};
+const handleDrop=(r,e)=>{e.preventDefault();const pid=e.dataTransfer.getData('text/plain');if(pid&&pid.indexOf('bb')===0)setRound(pid,r);setDragOver(null);};
 
-// ═══════════════════════════════════════════════════
-// RECOMMENDATIONS (NFL PLAYERS ONLY for Fantasy)
-// ═══════════════════════════════════════════════════
-function Recommendations({players,mode,format,offScheme,defScheme}){
-if(mode==='fantasy'){
-// ONLY NFL players — no college prospects
-const nfl=players.filter(p=>p.type!=='prospect');
-const scored=nfl.map(p=>({...p,fs:calcFantasyScore(p,format),sl:getSleeperRating(p),bust:getBustRisk(p),bk:getBreakoutScore(p)}));
-const sleepers=[...scored].sort((a,b)=>b.sl-a.sl).slice(0,6);
-const leagueWinners=scored.filter(p=>p.bk>40&&p.fs>55).sort((a,b)=>b.bk-a.bk).slice(0,6);
-const breakouts=[...scored].sort((a,b)=>b.bk-a.bk).slice(0,6);
-const busts=[...scored].sort((a,b)=>b.bust-a.bust).slice(0,6);
-const values=scored.filter(p=>p.fs>60).sort((a,b)=>a.fs-b.fs).slice(0,6);
-const handcuffs=scored.filter(p=>p.pos==='RB'&&p.oppShare>40&&p.oppShare<70).sort((a,b)=>b.fs-a.fs).slice(0,6);
-
-return <div className="grid-auto">
-{[['😴 Sleepers',sleepers,'sl','Sleeper'],['🏆 League Winners',leagueWinners,'bk','Breakout'],['🚀 Breakout',breakouts,'bk','Breakout'],['⚠️ Bust Risks',busts,'bust','Bust'],['💎 Value Picks',values,'fs','Score'],['🔗 Handcuffs',handcuffs,'fs','Score']].map(([title,list,key,label])=>
-<div className="card" key={title}>
-<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>{title}</h4>
-{list.length===0&&<span style={{fontSize:12,color:'var(--textDim)'}}>None found</span>}
-{list.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid var(--border)'}}>
-<span style={{fontSize:13}}><b>{p.name}</b> <span style={{color:'var(--textDim)'}}>{p.pos} · {p.team}</span></span>
-<span className={'badge '+scoreBadge(key==='bust'?100-p[key]:p[key])}>{label} {p[key]}</span>
-</div>)}
-</div>)}
-</div>;
-}else{
-const scored=players.map(p=>({...p,fr:calcFranchiseScore(p,offScheme,defScheme),sf:calcSchemeFit(p,offScheme,defScheme)}));
-const futureStars=scored.filter(p=>p.age<25).sort((a,b)=>b.fr-a.fr).slice(0,6);
-const schemeFits=[...scored].sort((a,b)=>b.sf-a.sf).slice(0,6);
-const bestContracts=scored.filter(p=>p.contract>0).sort((a,b)=>(b.fr/Math.max(1,b.contract))-(a.fr/Math.max(1,a.contract))).slice(0,6);
-const cornerstones=[...scored].sort((a,b)=>b.fr-a.fr).slice(0,6);
-const devTargets=scored.filter(p=>(p.dev==='Superstar'||p.dev==='Superstar X-Factor')&&p.age<26).sort((a,b)=>b.fr-a.fr).slice(0,6);
-return <div className="grid-auto">
-{[['⭐ Future Stars',futureStars,'fr','Score'],['🎯 Scheme Fits',schemeFits,'sf','Fit'],['💰 Best Value',bestContracts,'fr','Score'],['🏛️ Cornerstones',cornerstones,'fr','Score'],['📈 Dev Targets',devTargets,'fr','Score']].map(([title,list,key,label])=>
-<div className="card" key={title}><h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>{title}</h4>
-{list.map(p=><div key={p.id} style={{display:'flex',justifyContent:'space-between',padding:'5px 0',borderBottom:'1px solid var(--border)'}}><span style={{fontSize:13}}><b>{p.name}</b> <span style={{color:'var(--textDim)'}}>{p.pos}</span></span><span className={'badge '+scoreBadge(p[key])}>{label} {p[key]}</span></div>)}</div>)}
-</div>;
-}
-}
-
-// ═══════════════════════════════════════════════════
-// GM SETUP
-// ═══════════════════════════════════════════════════
-function GMSetup({gms,setGms}){
-const [pins,setPins]=useState(['','']);
-const colors=['#3b82f6','#ef4444','#22c55e','#eab308','#8b5cf6','#f97316','#ec4899','#06b6d4'];
-return <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
-{[0,1].map(i=><div key={i} className="card">
-<h4 style={{fontWeight:700,marginBottom:12,fontSize:14}}>GM {i+1}</h4>
-<div style={{display:'flex',flexDirection:'column',gap:8}}>
-<input placeholder="GM Name" value={gms[i]?.name||''} onChange={e=>{const g=[...gms];g[i]={...g[i],name:e.target.value};setGms(g);}}/>
-<input type="password" maxLength={4} placeholder="4-digit PIN" value={pins[i]} onChange={e=>{const v=e.target.value.replace(/\D/g,'').slice(0,4);const p=[...pins];p[i]=v;setPins(p);if(v.length===4){const g=[...gms];g[i]={...g[i],pin:v};setGms(g);}}}/>
-<div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
-{colors.map(c=><div key={c} onClick={()=>{const g=[...gms];g[i]={...g[i],color:c};setGms(g);}}
-style={{width:28,height:28,borderRadius:6,background:c,cursor:'pointer',border:gms[i]?.color===c?'3px solid var(--text)':'3px solid transparent'}}/>)}
-</div>
-<div style={{fontSize:12,color:'var(--textDim)'}}>Votes used: {Object.values(gms[i]?.votes||{}).reduce((s,v)=>s+v,0)}/50</div>
-</div>
-</div>)}
-</div>;
-}
-
-// ═══════════════════════════════════════════════════
-// BOARD MANAGER (with password protection)
-// ═══════════════════════════════════════════════════
-function BoardManager({boards,setBoards,activeBoard,setActiveBoard,onSaveAll,onLoadAll}){
-const [newName,setNewName]=useState('');
-const [editingId,setEditingId]=useState(null);
-const [pwModal,setPwModal]=useState(null); // {boardId,action:'open'|'setPw'}
-const [pwInput,setPwInput]=useState('');
-const [newPw,setNewPw]=useState('');
-
-const createBoard=()=>{
-const b={id:'b'+Date.now(),name:newName||'New Board',created:Date.now(),archived:false,password:'',
-tiers:DEFAULT_TIERS.map(t=>({...t,players:[]})),
-format:'halfPpr',offScheme:'Balanced',defScheme:'4-3 Base',
-gms:[{name:'',color:'#3b82f6',pin:'',votes:{}},{name:'',color:'#ef4444',pin:'',votes:{}}],
-notes:{},tags:{},filters:{},draftedIds:[]};
-setBoards(prev=>[...prev,b]);setActiveBoard(b.id);setNewName('');
-};
-const duplicateBoard=(b)=>{
-const dup={...JSON.parse(JSON.stringify(b)),id:'b'+Date.now(),name:b.name+' (Copy)',created:Date.now()};
-setBoards(prev=>[...prev,dup]);
-};
-const archiveBoard=(id)=>setBoards(prev=>prev.map(b=>b.id===id?{...b,archived:!b.archived}:b));
-const deleteBoard=(id)=>{setBoards(prev=>prev.filter(b=>b.id!==id));if(activeBoard===id)setActiveBoard(null);};
-const exportBoard=(b)=>{
-const blob=new Blob([JSON.stringify(b,null,2)],{type:'application/json'});
-const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=b.name+'.json';a.click();
-};
-const importBoard=(e)=>{
-const file=e.target.files[0];if(!file)return;
-const r=new FileReader();r.onload=ev=>{try{const b=JSON.parse(ev.target.result);b.id='b'+Date.now();setBoards(prev=>[...prev,b]);}catch(err){/* ignore */}};r.readAsText(file);
-e.target.value='';
-};
-
-const tryOpenBoard=(b)=>{
-if(b.password){setPwModal({boardId:b.id,action:'open'});setPwInput('');}
-else setActiveBoard(b.id);
-};
-const confirmPw=()=>{
-const b=boards.find(bb=>bb.id===pwModal.boardId);
-if(b&&pwInput===b.password){setActiveBoard(b.id);setPwModal(null);setPwInput('');}
-else{setPwInput('');/* wrong password */}
-};
-const setPassword=(boardId)=>{
-setBoards(prev=>prev.map(b=>b.id===boardId?{...b,password:newPw}:b));
-setNewPw('');setPwModal(null);
-};
-
-const active=boards.filter(b=>!b.archived);
-const archived=boards.filter(b=>b.archived);
+let pool=BB_PLAYERS.filter(p=>(pf==='ALL'||p.pos===pf)&&(!q||p.name.toLowerCase().includes(q.toLowerCase())||p.team.toLowerCase().includes(q.toLowerCase())));
+if(hideDrafted)pool=pool.filter(p=>!draftedIds.has(p.id));
+const totalVotes=pid=>((gms[0]?.votes||{})[pid]||0)+((gms[1]?.votes||{})[pid]||0);
 
 return <div>
-<div style={{display:'flex',gap:8,marginBottom:16,flexWrap:'wrap',alignItems:'center'}}>
-<input style={{width:200}} value={newName} onChange={e=>setNewName(e.target.value)} placeholder="Board name..."/>
-<button className="btn btn-primary btn-sm" onClick={createBoard}>+ New Board</button>
-<label className="btn btn-secondary btn-sm" style={{cursor:'pointer'}}>📥 Import<input type="file" accept=".json" onChange={importBoard} style={{display:'none'}}/></label>
-<button className="btn btn-success btn-sm" onClick={onSaveAll}>💾 Save All</button>
-<label className="btn btn-secondary btn-sm" style={{cursor:'pointer'}}>📂 Load Save<input type="file" accept=".json" onChange={onLoadAll} style={{display:'none'}}/></label>
+<div style={{background:'linear-gradient(180deg,#111827,#1e293b)',border:'2px solid #b8860b',borderRadius:12,padding:16,marginBottom:20}}>
+<div style={{textAlign:'center',marginBottom:12}}>
+<div style={{fontSize:20,fontWeight:900,letterSpacing:4,color:'#d4af37'}}>WAR ROOM · BIG BOARD</div>
+<div style={{fontSize:11,color:'#94a3b8',letterSpacing:2}}>CBS TOP 200 PPR · 12-ROUND VALUE BOARD · Drag a player onto a round, or use the Rd selector</div>
 </div>
-<div style={{display:'flex',flexDirection:'column',gap:6}}>
-{active.map(b=><div key={b.id} className="card-sm" style={{display:'flex',justifyContent:'space-between',alignItems:'center',
-background:activeBoard===b.id?'var(--accent)':'var(--surface)',color:activeBoard===b.id?'#fff':'var(--text)',cursor:'pointer'}}
-onClick={()=>tryOpenBoard(b)}>
-<div style={{display:'flex',alignItems:'center',gap:8}}>
-{b.password&&<span style={{fontSize:14}}>🔒</span>}
-{editingId===b.id?<input value={b.name} onClick={e=>e.stopPropagation()} onChange={e=>setBoards(prev=>prev.map(bb=>bb.id===b.id?{...bb,name:e.target.value}:bb))} onBlur={()=>setEditingId(null)} autoFocus style={{width:150}}/>
-:<span style={{fontWeight:600,fontSize:13}}>{b.name}</span>}
+{[1,2,3,4,5,6,7,8,9,10,11,12].map(r=>{
+const assigned=BB_PLAYERS.filter(p=>rounds[p.id]===r);
+return <div key={r} style={{display:'flex',alignItems:'stretch',marginBottom:4}}>
+<div style={{width:52,minWidth:52,display:'flex',alignItems:'center',justifyContent:'center',background:r<=3?'#b8860b':'#334155',color:r<=3?'#111827':'#d4af37',fontWeight:900,fontSize:13,borderRadius:'6px 0 0 6px',letterSpacing:1}}>RD {r}</div>
+<div className={'tier-zone'+(dragOver===r?' drag-over':'')} style={{flex:1,borderRadius:'0 6px 6px 0',minHeight:44,background:'rgba(15,23,42,.5)'}}
+onDragOver={e=>{e.preventDefault();setDragOver(r);}} onDragLeave={()=>setDragOver(null)} onDrop={e=>handleDrop(r,e)}>
+<div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+{assigned.map(p=>{const ev=bbEval(p,tags[p.id]);
+return <div key={p.id} draggable onDragStart={e=>{e.dataTransfer.setData('text/plain',p.id);e.dataTransfer.effectAllowed='move';}}
+style={{background:BB_POS_COLORS[p.pos],color:'#fff',borderRadius:4,padding:'4px 8px',fontSize:11,fontWeight:700,cursor:'grab',display:'flex',alignItems:'center',gap:5,boxShadow:'0 2px 4px rgba(0,0,0,.4)',opacity:draftedIds.has(p.id)?.5:1}}>
+<span>{p.name}</span><span style={{opacity:.8}}>{p.pos}{p.posRank}</span><span style={{background:'rgba(0,0,0,.3)',borderRadius:3,padding:'0 4px'}}>{ev.value}</span>
+{(tags[p.id]||[]).map(k=><span key={k}>{BB_TAGS.find(t=>t.k===k).label.split(' ')[0]}</span>)}
+<span onClick={()=>setRound(p.id,null)} style={{cursor:'pointer',opacity:.7,marginLeft:2}}>✕</span>
+</div>;})}
+{assigned.length===0&&<span style={{fontSize:11,color:'#475569',padding:'6px 8px'}}>—</span>}
 </div>
-<div style={{display:'flex',gap:4}} onClick={e=>e.stopPropagation()}>
-<button className="btn btn-xs btn-secondary" onClick={()=>setEditingId(b.id)}>✏️</button>
-<button className="btn btn-xs btn-secondary" onClick={()=>{setPwModal({boardId:b.id,action:'setPw'});setNewPw(b.password||'');}}>🔐</button>
-<button className="btn btn-xs btn-secondary" onClick={()=>duplicateBoard(b)}>📋</button>
-<button className="btn btn-xs btn-secondary" onClick={()=>exportBoard(b)}>📤</button>
-<button className="btn btn-xs btn-secondary" onClick={()=>archiveBoard(b.id)}>📦</button>
-<button className="btn btn-xs btn-danger" onClick={()=>deleteBoard(b.id)}>🗑</button>
 </div>
-</div>)}
+</div>;})}
 </div>
-{archived.length>0&&<div style={{marginTop:16}}>
-<h5 style={{fontSize:12,fontWeight:600,color:'var(--textDim)',marginBottom:8}}>ARCHIVED</h5>
-{archived.map(b=><div key={b.id} className="card-sm" style={{display:'flex',justifyContent:'space-between',alignItems:'center',opacity:.6,marginBottom:4}}>
-<span style={{fontSize:13}}>{b.name}</span>
-<div style={{display:'flex',gap:4}}><button className="btn btn-xs btn-secondary" onClick={()=>archiveBoard(b.id)}>Restore</button><button className="btn btn-xs btn-danger" onClick={()=>deleteBoard(b.id)}>🗑</button></div>
-</div>)}
-</div>}
 
-{/* Password Modal */}
-<Modal open={!!pwModal} onClose={()=>setPwModal(null)} title={pwModal?.action==='open'?'Enter Board Password':'Set Board Password'}>
-{pwModal?.action==='open'?<div style={{display:'flex',flexDirection:'column',gap:12,alignItems:'center'}}>
-<p style={{fontSize:13,color:'var(--textDim)'}}>This board is password protected.</p>
-<input type="password" value={pwInput} onChange={e=>setPwInput(e.target.value)} placeholder="Enter password..." style={{width:240,textAlign:'center'}}
-onKeyDown={e=>{if(e.key==='Enter')confirmPw();}}/>
-<button className="btn btn-primary" onClick={confirmPw}>Unlock</button>
-</div>:<div style={{display:'flex',flexDirection:'column',gap:12,alignItems:'center'}}>
-<p style={{fontSize:13,color:'var(--textDim)'}}>Set a password to protect this board. Leave blank to remove protection.</p>
-<input type="password" value={newPw} onChange={e=>setNewPw(e.target.value)} placeholder="New password (or blank to remove)..." style={{width:280,textAlign:'center'}}/>
-<button className="btn btn-primary" onClick={()=>setPassword(pwModal.boardId)}>{newPw?'Set Password':'Remove Password'}</button>
-</div>}
-</Modal>
+<div style={{display:'flex',gap:8,marginBottom:12,flexWrap:'wrap',alignItems:'center'}}>
+<input style={{width:220}} placeholder="Search top 200..." value={q} onChange={e=>setQ(e.target.value)}/>
+<select style={{width:90}} value={pf} onChange={e=>setPf(e.target.value)}>
+<option value="ALL">All Pos</option>
+{BB_POSITIONS.map(p=><option key={p} value={p}>{p}</option>)}
+</select>
+<label style={{display:'flex',alignItems:'center',gap:6,fontSize:12,color:'var(--textDim)',cursor:'pointer'}}>
+<input type="checkbox" style={{width:'auto'}} checked={hideDrafted} onChange={e=>setHideDrafted(e.target.checked)}/>Hide drafted
+</label>
+<span style={{fontSize:12,color:'var(--textDim)'}}>{pool.length} players</span>
+<div style={{marginLeft:'auto',display:'flex',gap:8,fontSize:11,color:'var(--textDim)',flexWrap:'wrap'}}>
+{BB_POSITIONS.map(p=><span key={p} style={{display:'flex',alignItems:'center',gap:4}}><span style={{width:10,height:10,borderRadius:2,background:BB_POS_COLORS[p]}}/>{p}</span>)}
+</div>
+</div>
+
+<div style={{display:'flex',flexDirection:'column',gap:6}}>
+{pool.map(p=>{
+const ev=bbEval(p,tags[p.id]);
+const drafted=draftedIds.has(p.id);
+return <div key={p.id} className="card-sm" draggable
+onDragStart={e=>{e.dataTransfer.setData('text/plain',p.id);e.dataTransfer.effectAllowed='move';}}
+style={{display:'flex',alignItems:'center',gap:10,flexWrap:'wrap',opacity:drafted?.55:1,borderLeft:'4px solid '+BB_POS_COLORS[p.pos],cursor:'grab'}}>
+<div style={{width:34,textAlign:'center',fontWeight:800,fontSize:13,color:'var(--textDim)'}}>#{p.rank}</div>
+<div style={{flex:1,minWidth:170}}>
+<div style={{fontWeight:700,fontSize:14,textDecoration:drafted?'line-through':'none'}}>{p.name} {ev.breakout?<span title="Breakout profile">🚀</span>:null}</div>
+<div style={{fontSize:11,color:'var(--textDim)'}}>{p.pos}{p.posRank} · {p.team} · ADP {p.adp}</div>
+</div>
+<div style={{display:'flex',gap:6,alignItems:'center',flexWrap:'wrap'}}>
+<span className="badge badge-blue" title="Expected PPR per game">{p.expPPR} xPPR</span>
+<span className="badge badge-purple" title="Dropoff to next at position">▼ {p.dropoff}</span>
+<span className={'badge '+scoreBadge(ev.value)} title="Value score">{ev.value}</span>
+<span className={'badge '+ev.vClass} style={{fontSize:10}}>{ev.verdict}</span>
+</div>
+<div style={{display:'flex',gap:3}}>
+{BB_TAGS.map(t=><button key={t.k} className="btn btn-xs" title={t.label}
+style={{background:(tags[p.id]||[]).includes(t.k)?'var(--accent)':'var(--surface2)',border:'1px solid var(--border)',padding:'2px 6px'}}
+onClick={()=>toggleTag(p.id,t.k)}>{t.label.split(' ')[0]}</button>)}
+</div>
+<select style={{width:74}} value={rounds[p.id]||''} onChange={e=>setRound(p.id,e.target.value?+e.target.value:null)}>
+<option value="">Rd —</option>
+{[1,2,3,4,5,6,7,8,9,10,11,12].map(r=><option key={r} value={r}>Rd {r}</option>)}
+</select>
+<div style={{display:'flex',gap:4,alignItems:'center'}}>
+{gms.map((gm,i)=>gm.name?<div key={i} style={{display:'flex',alignItems:'center',gap:2}}>
+<button className="btn btn-xs btn-secondary" style={{color:gm.color}} onClick={()=>onVote(i,p.id,1)}>▲</button>
+<span style={{fontSize:11,fontWeight:700,color:gm.color,minWidth:14,textAlign:'center'}}>{(gm.votes||{})[p.id]||0}</span>
+<button className="btn btn-xs btn-secondary" style={{color:gm.color}} onClick={()=>onVote(i,p.id,-1)}>▼</button>
+</div>:null)}
+{totalVotes(p.id)>0&&<span className="badge badge-yellow">{totalVotes(p.id)}★</span>}
+</div>
+<button className={'btn btn-xs '+(drafted?'btn-danger':'btn-success')} onClick={()=>onToggleDraft(p.id)}>{drafted?'Undo':'Draft'}</button>
+</div>;})}
+</div>
 </div>;
 }
 
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 // MAIN APP
-// ═══════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════
 function App(){
 const [darkMode,setDarkMode]=useState(true);
 const [mode,setMode]=useState('fantasy');
@@ -777,7 +1054,7 @@ id:'b1',name:'My Draft Board',created:Date.now(),archived:false,password:'',
 tiers:DEFAULT_TIERS.map(t=>({...t,players:[]})),
 format:'halfPpr',offScheme:'Balanced',defScheme:'4-3 Base',
 gms:[{name:'',color:'#3b82f6',pin:'',votes:{}},{name:'',color:'#ef4444',pin:'',votes:{}}],
-notes:{},tags:{},filters:{},draftedIds:[]}]);
+notes:{},tags:{},filters:{},draftedIds:[],bbRounds:{},bbTags:{}}]);
 const [activeBoard,setActiveBoard]=useState('b1');
 const [search,setSearch]=useState('');
 const [posFilter,setPosFilter]=useState('ALL');
@@ -794,6 +1071,7 @@ const format=board?.format||'halfPpr';
 const offScheme=board?.offScheme||'Balanced';
 const defScheme=board?.defScheme||'4-3 Base';
 const gms=board?.gms||[{name:'',color:'#3b82f6',pin:'',votes:{}},{name:'',color:'#ef4444',pin:'',votes:{}}];
+
 const draftedIds=useMemo(()=>new Set(board?.draftedIds||[]),[board?.draftedIds]);
 
 const updateBoard=(updates)=>setBoards(prev=>prev.map(b=>b.id===activeBoard?{...b,...updates}:b));
@@ -804,20 +1082,20 @@ const next=current.includes(playerId)?current.filter(id=>id!==playerId):[...curr
 updateBoard({draftedIds:next});
 };
 
-// ── Save / Load All ──
 const saveAllBoards=()=>{
 const data={boards,notes,savedAt:new Date().toISOString()};
 const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
-const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='war-room-save-'+new Date().toISOString().slice(0,10)+'.json';a.click();
+const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+a.download='war-room-save-'+new Date().toISOString().slice(0,10)+'.json';a.click();
 };
 const loadAllBoards=(e)=>{
 const file=e.target.files[0];if(!file)return;
 const r=new FileReader();r.onload=ev=>{
 try{
 const data=JSON.parse(ev.target.result);
-if(data.boards){setBoards(data.boards);setActiveBoard(data.boards[0]?.id||null);}
+if(data.boards&&Array.isArray(data.boards)){setBoards(data.boards);setActiveBoard(data.boards[0]?.id||null);}
 if(data.notes)setNotes(data.notes);
-}catch(err){/* ignore */}
+}catch(err){}
 };r.readAsText(file);e.target.value='';
 };
 
@@ -838,29 +1116,51 @@ else if(sortBy==='sleeper')list.sort((a,b)=>b._sl-a._sl);
 else if(sortBy==='breakout')list.sort((a,b)=>b._bk-a._bk);
 else if(sortBy==='bust')list.sort((a,b)=>b._bust-a._bust);
 else if(sortBy==='schemeFit')list.sort((a,b)=>b._sf-a._sf);
-else if(sortBy==='votes'){list.sort((a,b)=>{const va=((gms[0]?.votes||{})[a.id]||0)+((gms[1]?.votes||{})[a.id]||0);const vb=((gms[0]?.votes||{})[b.id]||0)+((gms[1]?.votes||{})[b.id]||0);return vb-va;});}
+else if(sortBy==='votes'){
+list.sort((a,b)=>{
+const va=((gms[0]?.votes||{})[a.id]||0)+((gms[1]?.votes||{})[a.id]||0);
+const vb=((gms[0]?.votes||{})[b.id]||0)+((gms[1]?.votes||{})[b.id]||0);
+return vb-va;
+});
+}
 return list;
 },[search,posFilter,typeFilter,sortBy,mode,format,offScheme,defScheme,gms]);
 
 const handleVote=(gmIdx,playerId,delta)=>{
 if(!gms[gmIdx]?.pin){setGmSetupOpen(true);return;}
-setPinModal({gmIdx,playerId,delta});setPinInput('');
+setPinModal({gmIdx,playerId,delta});
+setPinInput('');
 };
+
 const confirmVote=()=>{
-if(!pinModal)return;const{gmIdx,playerId,delta}=pinModal;
-if(pinInput!==gms[gmIdx].pin){setPinInput('');return;}
-const currentVotes={...gms[gmIdx].votes};const current=currentVotes[playerId]||0;
+if(!pinModal)return;
+const {gmIdx,playerId,delta}=pinModal;
+if(pinInput!==gms[gmIdx].pin){alert('Incorrect PIN');return;}
+const currentVotes={...gms[gmIdx].votes};
+const current=currentVotes[playerId]||0;
 const totalUsed=Object.values(currentVotes).reduce((s,v)=>s+v,0);
 const newVal=Math.max(0,current+delta);
-if(delta>0&&totalUsed>=50){setPinModal(null);return;}
-currentVotes[playerId]=newVal;if(newVal===0)delete currentVotes[playerId];
-const newGms=[...gms];newGms[gmIdx]={...newGms[gmIdx],votes:currentVotes};
-updateBoard({gms:newGms});setPinModal(null);setPinInput('');
+if(delta>0&&totalUsed>=50){alert('No votes remaining!');setPinModal(null);return;}
+currentVotes[playerId]=newVal;
+if(newVal===0)delete currentVotes[playerId];
+const newGms=[...gms];
+newGms[gmIdx]={...newGms[gmIdx],votes:currentVotes};
+updateBoard({gms:newGms});
+setPinModal(null);setPinInput('');
 };
 
 useEffect(()=>{document.body.className=darkMode?'':'light';},[darkMode]);
 
-const views={board:'📋 Big Board',tiers:'🏗️ Tier Board',myteam:'🏟️ My Team',dashboard:'📊 Dashboard',recs:'💡 Recommendations',collab:'🤝 Collaboration',boards:'📁 Boards'};
+const views={
+board:'📋 Fantasy Roster',
+bigboard:'🏛️ Big Board',
+tiers:'🏗️ Tier Board',
+myteam:'🏟️ My Team',
+dashboard:'📊 Dashboard',
+recs:'💡 Recommendations',
+collab:'🤝 Collaboration',
+boards:'📁 Boards'
+};
 const draftedCount=draftedIds.size;
 
 return <AppCtx.Provider value={{notes,setNotes}}>
@@ -872,24 +1172,25 @@ return <AppCtx.Provider value={{notes,setNotes}}>
 <span style={{fontSize:20}}>🏈</span>
 <h1 style={{fontSize:18,fontWeight:800,background:'linear-gradient(135deg,var(--accent),var(--accent2))',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent'}}>WAR ROOM</h1>
 </div>
+{/* Mode Toggle */}
 <div style={{display:'flex',gap:4,background:'var(--surface2)',borderRadius:8,padding:3}}>
-<button className={'tab '+(mode==='fantasy'?'active':'')} style={{flex:1,fontSize:12}} onClick={()=>setMode('fantasy')}>Fantasy</button>
-<button className={'tab '+(mode==='madden'?'active':'')} style={{flex:1,fontSize:12}} onClick={()=>setMode('madden')}>Madden</button>
+<button className={`tab ${mode==='fantasy'?'active':''}`} style={{flex:1,fontSize:12}} onClick={()=>setMode('fantasy')}>Fantasy</button>
+<button className={`tab ${mode==='madden'?'active':''}`} style={{flex:1,fontSize:12}} onClick={()=>setMode('madden')}>Madden</button>
 </div>
 </div>
 
+{/* Nav */}
 <div style={{padding:12,flex:1,overflowY:'auto'}}>
 {Object.entries(views).map(([k,label])=>
-<button key={k} className={'tab '+(view===k?'active':'')} onClick={()=>setView(k)}
-style={{display:'block',width:'100%',textAlign:'left',marginBottom:4}}>
-{label}{k==='myteam'&&draftedCount>0?' ('+draftedCount+')':''}
-</button>
+<button key={k} className={`tab ${view===k?'active':''}`} onClick={()=>setView(k)}
+style={{display:'block',width:'100%',textAlign:'left',marginBottom:4}}>{label}{k==='myteam'&&draftedCount>0?' ('+draftedCount+')':''}</button>
 )}
 
 <div style={{borderTop:'1px solid var(--border)',marginTop:12,paddingTop:12}}>
 <button className="btn btn-secondary btn-sm" style={{width:'100%',marginBottom:6}} onClick={()=>setGmSetupOpen(true)}>👥 GM Setup</button>
 </div>
 
+{/* Scoring / Scheme */}
 <div style={{borderTop:'1px solid var(--border)',marginTop:12,paddingTop:12}}>
 <label style={{fontSize:11,fontWeight:600,color:'var(--textDim)',display:'block',marginBottom:4}}>
 {mode==='fantasy'?'SCORING FORMAT':'OFFENSIVE SCHEME'}
@@ -901,22 +1202,29 @@ style={{display:'block',width:'100%',textAlign:'left',marginBottom:4}}>
 <select value={offScheme} onChange={e=>updateBoard({offScheme:e.target.value})}>
 {OFF_SCHEMES.map(s=><option key={s} value={s}>{s}</option>)}
 </select>}
+
 {mode==='madden'&&<>
 <label style={{fontSize:11,fontWeight:600,color:'var(--textDim)',display:'block',marginBottom:4,marginTop:8}}>DEFENSIVE SCHEME</label>
 <select value={defScheme} onChange={e=>updateBoard({defScheme:e.target.value})}>
 {DEF_SCHEMES.map(s=><option key={s} value={s}>{s}</option>)}
-</select></>}
+</select>
+</>}
 </div>
 
+{/* Active Board */}
 {board&&<div style={{borderTop:'1px solid var(--border)',marginTop:12,paddingTop:12}}>
 <label style={{fontSize:11,fontWeight:600,color:'var(--textDim)',display:'block',marginBottom:4}}>ACTIVE BOARD</label>
-<div style={{fontSize:13,fontWeight:600,display:'flex',alignItems:'center',gap:6}}>{board.password&&<span>🔒</span>}{board.name}</div>
+<div style={{fontSize:13,fontWeight:600}}>{board.name}</div>
 </div>}
 
+{/* GM Status */}
 {(gms[0]?.name||gms[1]?.name)&&<div style={{borderTop:'1px solid var(--border)',marginTop:12,paddingTop:12}}>
 <label style={{fontSize:11,fontWeight:600,color:'var(--textDim)',display:'block',marginBottom:6}}>GM STATUS</label>
 {gms.map((gm,i)=>gm.name?<div key={i} style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
-<div style={{display:'flex',alignItems:'center',gap:6}}><div style={{width:10,height:10,borderRadius:'50%',background:gm.color}}/><span style={{fontSize:12,fontWeight:600}}>{gm.name}</span></div>
+<div style={{display:'flex',alignItems:'center',gap:6}}>
+<div style={{width:10,height:10,borderRadius:'50%',background:gm.color}}/>
+<span style={{fontSize:12,fontWeight:600}}>{gm.name}</span>
+</div>
 <span style={{fontSize:11,color:'var(--textDim)'}}>{Object.values(gm.votes).reduce((s,v)=>s+v,0)}/50</span>
 </div>:null)}
 </div>}
@@ -928,17 +1236,19 @@ style={{display:'block',width:'100%',textAlign:'left',marginBottom:4}}>
 </div>
 </div>}
 
-{/* Main */}
+{/* Main Content */}
 <div style={{flex:1,display:'flex',flexDirection:'column',overflow:'hidden'}}>
+{/* Top Bar */}
 <div style={{padding:'12px 20px',borderBottom:'1px solid var(--border)',display:'flex',alignItems:'center',gap:12,flexWrap:'wrap',background:'var(--surface)'}}>
 <button className="btn btn-secondary btn-sm" onClick={()=>setSidebarOpen(!sidebarOpen)}>☰</button>
+
 {(view==='board'||view==='tiers')&&<>
-<input style={{width:220}} placeholder="Search players..." value={search} onChange={e=>setSearch(e.target.value)}/>
-<select style={{width:90}} value={posFilter} onChange={e=>setPosFilter(e.target.value)}>
+<input style={{width:240}} placeholder="Search players..." value={search} onChange={e=>setSearch(e.target.value)}/>
+<select style={{width:100}} value={posFilter} onChange={e=>setPosFilter(e.target.value)}>
 <option value="ALL">All Pos</option>
 {POSITIONS.map(p=><option key={p} value={p}>{p}</option>)}
 </select>
-<select style={{width:105}} value={typeFilter} onChange={e=>setTypeFilter(e.target.value)}>
+<select style={{width:110}} value={typeFilter} onChange={e=>setTypeFilter(e.target.value)}>
 <option value="ALL">All Types</option>
 <option value="veteran">Veterans</option>
 <option value="rookie">Rookies</option>
@@ -946,53 +1256,62 @@ style={{display:'block',width:'100%',textAlign:'left',marginBottom:4}}>
 </select>
 <select style={{width:120}} value={sortBy} onChange={e=>setSortBy(e.target.value)}>
 <option value="score">{mode==='fantasy'?'Fantasy Score':'Franchise Score'}</option>
-<option value="name">Name</option><option value="age">Age</option>
+<option value="name">Name</option>
+<option value="age">Age</option>
 {mode==='fantasy'&&<option value="sleeper">Sleeper Rating</option>}
-<option value="breakout">Breakout</option><option value="bust">Bust Risk</option>
+<option value="breakout">Breakout</option>
+<option value="bust">Bust Risk</option>
 {mode==='madden'&&<option value="schemeFit">Scheme Fit</option>}
 <option value="votes">Votes</option>
 </select>
 <span style={{fontSize:12,color:'var(--textDim)'}}>{filteredPlayers.length} players</span>
 </>}
+
 <div style={{marginLeft:'auto',display:'flex',gap:6}}>
-<span className="badge badge-blue" style={{fontSize:12}}>{mode==='fantasy'?'Fantasy':'Madden'}</span>
+<span className="badge badge-blue" style={{fontSize:12}}>{mode==='fantasy'?'Fantasy Mode':'Madden Mode'}</span>
 {mode==='fantasy'&&<span className="badge badge-purple" style={{fontSize:12}}>{SCORING_FORMATS[format]?.label}</span>}
 {mode==='madden'&&<span className="badge badge-purple" style={{fontSize:12}}>{offScheme}</span>}
-{draftedCount>0&&<span className="badge badge-green" style={{fontSize:12}}>{draftedCount} Drafted</span>}
 </div>
 </div>
 
+{/* Content */}
 <div style={{flex:1,overflow:'auto',padding:20}}>
 {view==='board'&&<div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(340px,1fr))',gap:12}}>
 {filteredPlayers.map(p=><PlayerCard key={p.id} player={p} mode={mode} format={format}
 offScheme={offScheme} defScheme={defScheme} gms={gms}
-onVote={handleVote} drafted={draftedIds.has(p.id)} onToggleDraft={toggleDraft}/>)}
+onVote={handleVote} onNote={()=>{}} drafted={draftedIds.has(p.id)} onToggleDraft={toggleDraft}/>)}
 </div>}
 
-{view==='tiers'&&board&&<TierBoard tiers={board.tiers} setTiers={t=>updateBoard({tiers:t})}
-players={filteredPlayers} mode={mode} format={format} offScheme={offScheme} defScheme={defScheme}/>}
+{view==='bigboard'&&board&&<BigBoard board={board} updateBoard={updateBoard} gms={gms}
+onVote={handleVote} draftedIds={draftedIds} onToggleDraft={toggleDraft}/>}
 
-{view==='myteam'&&<MyTeamView draftedIds={draftedIds} players={ALL_PLAYERS} mode={mode}
+{view==='myteam'&&<MyTeamView draftedIds={draftedIds} players={ALL_PLAYERS.concat(BB_PLAYERS)} mode={mode}
 format={format} offScheme={offScheme} defScheme={defScheme} onUndraft={toggleDraft}/>}
 
+{view==='tiers'&&board&&<TierBoard tiers={Array.isArray(board.tiers)?board.tiers:DEFAULT_TIERS.map(t=>({...t,players:[]}))}
+setTiers={u=>setBoards(prev=>prev.map(b=>{if(b.id!==activeBoard)return b;const cur=Array.isArray(b.tiers)?b.tiers:DEFAULT_TIERS.map(t=>({...t,players:[]}));return {...b,tiers:typeof u==='function'?u(cur):u};}))}
+players={filteredPlayers} mode={mode} format={format} offScheme={offScheme} defScheme={defScheme}
+gms={gms} onVote={handleVote}/>}
+
 {view==='dashboard'&&(mode==='fantasy'?
-<FantasyDashboard players={ALL_PLAYERS} format={format}/>:
+<FantasyDashboard players={NFL_PLAYERS} format={format}/>:
 <FranchiseDashboard players={ALL_PLAYERS} offScheme={offScheme} defScheme={defScheme}/>)}
 
-{view==='recs'&&<Recommendations players={ALL_PLAYERS} mode={mode} format={format} offScheme={offScheme} defScheme={defScheme}/>}
+{view==='recs'&&<Recommendations players={NFL_PLAYERS} mode={mode} format={format} offScheme={offScheme} defScheme={defScheme}/>}
 
-{view==='collab'&&<CollabDashboard players={ALL_PLAYERS} gms={gms}/>}
+{view==='collab'&&<CollabDashboard players={ALL_PLAYERS.concat(BB_PLAYERS)} gms={gms} format={format} mode={mode} offScheme={offScheme} defScheme={defScheme}/>}
 
-{view==='boards'&&<BoardManager boards={boards} setBoards={setBoards} activeBoard={activeBoard}
-setActiveBoard={setActiveBoard} onSaveAll={saveAllBoards} onLoadAll={loadAllBoards}/>}
+{view==='boards'&&<BoardManager boards={boards} setBoards={setBoards} activeBoard={activeBoard} setActiveBoard={setActiveBoard} onSaveAll={saveAllBoards} onLoadAll={loadAllBoards}/>}
 </div>
 </div>
 </div>
 
+{/* GM Setup Modal */}
 <Modal open={gmSetupOpen} onClose={()=>setGmSetupOpen(false)} title="GM Setup">
 <GMSetup gms={gms} setGms={g=>updateBoard({gms:g})}/>
 </Modal>
 
+{/* PIN Verification Modal */}
 <Modal open={!!pinModal} onClose={()=>setPinModal(null)} title="Enter PIN to Vote">
 <div style={{display:'flex',flexDirection:'column',gap:12,alignItems:'center'}}>
 <p style={{fontSize:13,color:'var(--textDim)'}}>Enter {pinModal?gms[pinModal.gmIdx]?.name+"'s":''} 4-digit PIN</p>
